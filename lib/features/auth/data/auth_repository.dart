@@ -1,0 +1,240 @@
+import 'package:dio/dio.dart';
+import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
+
+/// Result from login or OTP verify.
+class LoginResult {
+  final bool otpRequired;
+  final String? token;
+  final User? user;
+
+  LoginResult({required this.otpRequired, this.token, this.user});
+}
+
+/// Result from OTP request (step 1).
+class OtpRequestResult {
+  final bool otpSent;
+  final bool multipleAccounts;
+  final List<String> channels;
+  final String? maskedContact;
+  final int expiresIn;
+  final int resendCooldown;
+  final int? userId;
+  final List<AccountInfo>? accounts;
+  final String? error;
+
+  OtpRequestResult({
+    required this.otpSent,
+    this.multipleAccounts = false,
+    this.channels = const [],
+    this.maskedContact,
+    this.expiresIn = 300,
+    this.resendCooldown = 60,
+    this.userId,
+    this.accounts,
+    this.error,
+  });
+}
+
+/// Account info for multi-school picker.
+class AccountInfo {
+  final int userId;
+  final String schoolName;
+  final String userType;
+
+  AccountInfo({
+    required this.userId,
+    required this.schoolName,
+    required this.userType,
+  });
+
+  factory AccountInfo.fromJson(Map<String, dynamic> json) {
+    return AccountInfo(
+      userId: json['user_id'] as int,
+      schoolName: json['school_name'] as String,
+      userType: json['user_type'] as String,
+    );
+  }
+}
+
+class AuthRepository {
+  final ApiClient _apiClient;
+  AuthRepository(this._apiClient);
+
+  /// Verifies the saved token and fetches the user's latest data on app startup.
+  Future<User> getProfile() async {
+    try {
+      final response = await _apiClient.dio.get('/staff/profile');
+      return User.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? 'Your session has expired.';
+    } catch (e) {
+      throw 'Could not verify session. Please check your network connection.';
+    }
+  }
+
+  /// Check if OTP login is enabled on the platform.
+  Future<bool> checkOtpAvailability() async {
+    try {
+      final response = await _apiClient.dio.get('/otp-login/check');
+      return response.data['otp_available'] as bool? ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Attempts to log the user in with credentials and optional OTP.
+  Future<LoginResult> login({
+    required String username,
+    required String password,
+    String? otp,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/login',
+        data: {
+          'username': username,
+          'password': password,
+          'device_name': 'mobile_app',
+          if (otp != null) 'otp': otp,
+        },
+      );
+      final data = response.data;
+      final bool otpRequired = data['otp_required'] ?? false;
+
+      if (otpRequired) {
+        return LoginResult(otpRequired: true);
+      } else {
+        final token = data['token'] as String;
+        final user = User.fromJson(data['user']);
+        return LoginResult(otpRequired: false, token: token, user: user);
+      }
+    } on DioException catch (e) {
+      // This part is crucial for showing correct error messages from Laravel.
+      final responseData = e.response?.data;
+      if (responseData is Map && responseData.containsKey('errors')) {
+        throw responseData['errors'].values.first[0];
+      }
+      throw responseData?['message'] ?? 'An unknown error occurred.';
+    } catch (e) {
+      if (e is String) rethrow;
+      throw 'Could not connect to the server. Please try again later.';
+    }
+  }
+
+  // =========================================================================
+  // PASSWORDLESS OTP LOGIN
+  // =========================================================================
+
+  /// Step 1: Request OTP for a phone number or email.
+  Future<OtpRequestResult> requestOtp({required String identifier}) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/otp-login/request',
+        data: {
+          'identifier': identifier,
+          'app': 'staff',
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+
+      if (data['multiple_accounts'] == true) {
+        final accounts = (data['accounts'] as List)
+            .map((a) => AccountInfo.fromJson(a as Map<String, dynamic>))
+            .toList();
+        return OtpRequestResult(
+          otpSent: false,
+          multipleAccounts: true,
+          accounts: accounts,
+        );
+      }
+
+      return OtpRequestResult(
+        otpSent: data['otp_sent'] as bool? ?? false,
+        channels: List<String>.from(data['channels'] ?? []),
+        maskedContact: data['masked_contact'] as String?,
+        expiresIn: data['expires_in'] as int? ?? 300,
+        resendCooldown: data['resend_cooldown'] as int? ?? 60,
+        userId: data['user_id'] as int?,
+      );
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      if (data is Map && data.containsKey('error')) {
+        throw data['error'];
+      }
+      throw 'API Error [$status] on ${e.requestOptions.uri}: ${e.message}';
+    } catch (e) {
+      if (e is String) rethrow;
+      throw 'Connection Error: ${e.toString()}';
+    }
+  }
+
+  /// Step 2: Verify OTP and get auth token.
+  Future<LoginResult> verifyOtp({
+    required String identifier,
+    required String otp,
+    int? userId,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/otp-login/verify',
+        data: {
+          'identifier': identifier,
+          'otp': otp,
+          'app': 'staff',
+          if (userId != null) 'user_id': userId,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = User.fromJson(data['user']);
+
+      return LoginResult(otpRequired: false, token: token, user: user);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data.containsKey('error')) {
+        throw data['error'];
+      }
+      throw 'OTP verification failed. Please try again.';
+    } catch (e) {
+      if (e is String) rethrow;
+      throw 'Could not connect to the server.';
+    }
+  }
+
+  /// Resend OTP with cooldown.
+  Future<OtpRequestResult> resendOtp({
+    required String identifier,
+    int? userId,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/otp-login/resend',
+        data: {
+          'identifier': identifier,
+          'app': 'staff',
+          if (userId != null) 'user_id': userId,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+
+      return OtpRequestResult(
+        otpSent: data['otp_sent'] as bool? ?? false,
+        channels: List<String>.from(data['channels'] ?? []),
+        maskedContact: data['masked_contact'] as String?,
+        expiresIn: data['expires_in'] as int? ?? 300,
+        resendCooldown: data['resend_cooldown'] as int? ?? 60,
+      );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data.containsKey('error')) {
+        throw data['error'];
+      }
+      throw 'Could not resend OTP.';
+    } catch (e) {
+      if (e is String) rethrow;
+      throw 'Could not connect to the server.';
+    }
+  }
+}
