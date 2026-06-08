@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package:school_erp_staff_app/features/dashboard/presentation/dashboard_controller.dart';
+import 'package:school_erp_staff_app/features/dashboard/presentation/dashboard_controller.dart';
 import '../data/profile_repository.dart';
 
 final profileControllerProvider =

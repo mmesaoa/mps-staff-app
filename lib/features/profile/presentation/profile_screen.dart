@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'profile_controller.dart';
 
 class ProfileScreen extends ConsumerWidget {

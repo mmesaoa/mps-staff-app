@@ -76,32 +76,51 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         title: Text(_isViewOnly ? 'View Attendance' : 'Take Attendance'),
         actions: [
           // Only show action buttons if it's not "view only" mode.
-          if (!_isViewOnly) ...[
-            TextButton(
+          if (!_isViewOnly)
+            IconButton(
+              icon: const Icon(Icons.checklist, color: Colors.white),
+              tooltip: 'Mark All Present',
               onPressed: () => ref
                   .read(attendanceControllerProvider(widget.sectionId, widget.date)
                       .notifier)
                   .markAllAsPresent(),
-              child: const Text('MARK ALL PRESENT'),
             ),
-            if (_isSubmitting)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(color: Colors.white)),
-              )
-            else
-              TextButton(
-                onPressed:
-                    attendanceAsyncState.hasValue ? _submitAttendance : null,
-                child: const Text('SUBMIT',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              )
-          ]
         ],
       ),
+      bottomNavigationBar: !_isViewOnly && attendanceAsyncState.hasValue
+          ? Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: const Offset(0, -4),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    backgroundColor: Colors.orange, // Based on the user's FAB color
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    )
+                  ),
+                  onPressed: _isSubmitting ? null : _submitAttendance,
+                  child: _isSubmitting 
+                      ? const SizedBox(
+                          width: 24, height: 24, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                        )
+                      : const Text('Submit Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: attendanceAsyncState.when(
           loading: () => const Center(child: CircularProgressIndicator()),
