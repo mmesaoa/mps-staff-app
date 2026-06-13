@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 class SecureStorageService {
   // Singleton pattern
@@ -9,8 +10,29 @@ class SecureStorageService {
   factory SecureStorageService() => _instance;
   SecureStorageService._internal();
 
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
   
+  // Safe read helper to prevent crashes due to Android Keystore corruption
+  Future<String?> _safeRead(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } on PlatformException catch (e) {
+      debugPrint("🛡️ [Security] PlatformException during read. Keystore might be corrupted: $e");
+      try {
+        await _storage.deleteAll();
+      } catch (e2) {
+        debugPrint("❌ [Storage] FAILED to delete all storage after exception: $e2");
+      }
+      return null;
+    } catch (e) {
+      debugPrint("❌ [Storage] FAILED to read key $key: $e");
+      return null;
+    }
+  }
   // Static cache to bridge ALL instances and prevent race conditions
   static String? _cachedToken;
 
@@ -32,7 +54,7 @@ class SecureStorageService {
       // ✅ SECURITY HARDENING: If a different user is logging in, 
       // wipe the biometric data of the previous user to prevent "Race Condition" logins.
       if (username != null) {
-        final lastUser = await _storage.read(key: _lastUsernameKey);
+        final lastUser = await _safeRead(_lastUsernameKey);
         if (lastUser != null && lastUser != username) {
           debugPrint("🛡️ [Security] Different user detected. Clearing legacy biometric data.");
           await clearBiometricData();
@@ -59,17 +81,27 @@ class SecureStorageService {
   }
 
   Future<bool> isBiometricEnabled() async {
-    final value = await _storage.read(key: _biometricEnabledKey);
-    return value == 'true';
+    try {
+      final value = await _safeRead(_biometricEnabledKey);
+      return value == 'true';
+    } catch (e) {
+      debugPrint("❌ [Storage] Unexpected error reading biometric preference: $e");
+      return false;
+    }
   }
 
   Future<Map<String, String>?> getStoredCredentials() async {
-    final username = await _storage.read(key: _lastUsernameKey);
-    final password = await _storage.read(key: _lastPasswordKey);
-    if (username != null && password != null) {
-      return {'username': username, 'password': password};
+    try {
+      final username = await _safeRead(_lastUsernameKey);
+      final password = await _safeRead(_lastPasswordKey);
+      if (username != null && password != null) {
+        return {'username': username, 'password': password};
+      }
+      return null;
+    } catch (e) {
+      debugPrint("❌ [Storage] Unexpected error reading credentials: $e");
+      return null;
     }
-    return null;
   }
 
   Future<void> clearBiometricData() async {
@@ -86,7 +118,7 @@ class SecureStorageService {
         return _cachedToken;
       }
 
-      final token = await _storage.read(key: _tokenKey);
+      final token = await _safeRead(_tokenKey);
       if (token != null) {
         _cachedToken = token; // Populate cache
         debugPrint("💾 [STATIC-CACHE] Token loaded from DISK into memory.");
@@ -102,7 +134,7 @@ class SecureStorageService {
 
   Future<User?> readUser() async {
     try {
-      final userJson = await _storage.read(key: _userKey);
+      final userJson = await _safeRead(_userKey);
       if (userJson != null) {
         debugPrint("✅ [Storage] User data read successfully.");
         return User.fromJson(jsonDecode(userJson));

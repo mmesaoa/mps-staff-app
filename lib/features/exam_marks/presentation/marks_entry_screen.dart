@@ -1,73 +1,106 @@
-// lib/features/exam_marks/presentation/marks_entry_screen.dart
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/api_exception.dart';
+import '../../../shared/widgets/api_error_widget.dart';
 import '../domain/marks_models.dart';
 import 'marks_controller.dart';
 
-class MarksEntryScreen extends ConsumerWidget {
+class MarksEntryScreen extends ConsumerStatefulWidget {
   final int examId, classId, sectionId;
   final String header;
   const MarksEntryScreen({super.key, required this.examId, required this.classId, required this.sectionId, required this.header});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MarksEntryScreen> createState() => _MarksEntryScreenState();
+}
+
+class _MarksEntryScreenState extends ConsumerState<MarksEntryScreen> {
+  bool _isSubmitting = false;
+
+  Future<void> _submitMarks() async {
+    setState(() => _isSubmitting = true);
+    try {
+      final notifier = ref.read(marksEntryControllerProvider(
+        examId: widget.examId, classId: widget.classId, sectionId: widget.sectionId
+      ).notifier);
+      final msg = await notifier.saveAllMarks();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        final message = e is ApiException ? e.message : e.toString();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final marksState = ref.watch(marksEntryControllerProvider(
-      examId: examId, classId: classId, sectionId: sectionId
+      examId: widget.examId, classId: widget.classId, sectionId: widget.sectionId
     ));
     final notifier = ref.read(marksEntryControllerProvider(
-      examId: examId, classId: classId, sectionId: sectionId
+      examId: widget.examId, classId: widget.classId, sectionId: widget.sectionId
     ).notifier);
     
     return Scaffold(
-      appBar: AppBar(title: Text(header)),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          try {
-            final msg = await notifier.saveAllMarks();
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
-          } catch(e) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-          }
-        },
-        label: const Text('Save All Marks'),
-        icon: const Icon(Icons.save),
-      ),
+      appBar: AppBar(title: Text(widget.header)),
+      bottomNavigationBar: marksState.hasValue ? Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              offset: const Offset(0, -4),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+              backgroundColor: Colors.orange, // Match the theme color
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              )
+            ),
+            onPressed: _isSubmitting ? null : _submitMarks,
+            child: _isSubmitting 
+                ? const SizedBox(
+                    width: 24, height: 24, 
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                  )
+                : const Text('Save All Marks', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ) : null,
       body: SafeArea(
         child: marksState.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-  
-  
-          // ✅ 2. IMPROVE THE ERROR WIDGET
-          error: (e, st) {
-            String errorMessage = 'An unexpected error occurred. Please try again.';
-            // Check if the error is a DioException and if it has a response with data
-            if (e is DioException && e.response?.data is Map) {
-              // Use the 'message' from the server's JSON response
-              errorMessage = e.response!.data['message'] ?? 'Failed to load data. Check your selection.';
-            } else {
-              // Fallback for other types of errors
-              errorMessage = 'Error: Could not connect to the server.';
-            }
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  errorMessage,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.red.shade700),
-                ),
-              ),
+          error: (err, stack) {
+            final exception = err is ApiException ? err : ApiException.server(err.toString());
+            return ApiErrorWidget(
+              error: exception,
+              onRetry: () => ref.refresh(marksEntryControllerProvider(
+                examId: widget.examId, classId: widget.classId, sectionId: widget.sectionId
+              )),
             );
           },
-  
-  
           data: (data) {
             final List<MarkDistribution> distributions = data['distributions'];
             final List<StudentMarksEntry> students = data['students'];
   
             return ListView.builder(
-              padding: const EdgeInsets.all(8).copyWith(bottom: 80),
+              padding: const EdgeInsets.all(8),
               itemCount: students.length,
               itemBuilder: (context, index) {
                 final student = students[index];

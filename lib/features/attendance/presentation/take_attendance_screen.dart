@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/api/api_exception.dart';
+import '../../../shared/widgets/api_error_widget.dart';
+import '../../../shared/widgets/shimmer_loading.dart';
 import 'attendance_controller.dart';
 
 class TakeAttendanceScreen extends ConsumerStatefulWidget {
@@ -55,9 +58,10 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final message = e is ApiException ? e.message : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: $e'),
+              content: Text(message),
               backgroundColor: Colors.red,
             ));
       }
@@ -76,14 +80,17 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         title: Text(_isViewOnly ? 'View Attendance' : 'Take Attendance'),
         actions: [
           // Only show action buttons if it's not "view only" mode.
-          if (!_isViewOnly)
+          if (!_isViewOnly && attendanceAsyncState.hasValue)
             IconButton(
               icon: const Icon(Icons.checklist, color: Colors.white),
               tooltip: 'Mark All Present',
-              onPressed: () => ref
-                  .read(attendanceControllerProvider(widget.sectionId, widget.date)
-                      .notifier)
-                  .markAllAsPresent(),
+              // Disable if all students are locked
+              onPressed: attendanceAsyncState.value!.lockedStudentIds.length == attendanceAsyncState.value!.students.length
+                  ? null 
+                  : () => ref
+                      .read(attendanceControllerProvider(widget.sectionId, widget.date)
+                          .notifier)
+                      .markAllAsPresent(),
             ),
         ],
       ),
@@ -106,11 +113,15 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
                     minimumSize: const Size.fromHeight(50),
                     backgroundColor: Colors.orange, // Based on the user's FAB color
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledForegroundColor: Colors.grey.shade600,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     )
                   ),
-                  onPressed: _isSubmitting ? null : _submitAttendance,
+                  onPressed: _isSubmitting || (attendanceAsyncState.value!.lockedStudentIds.length == attendanceAsyncState.value!.students.length)
+                      ? null 
+                      : _submitAttendance,
                   child: _isSubmitting 
                       ? const SizedBox(
                           width: 24, height: 24, 
@@ -123,13 +134,14 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           : null,
       body: SafeArea(
         child: attendanceAsyncState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text('Error: $err'),
-            ),
-          ),
+          loading: () => SkeletonLoaders.listTile(),
+          error: (err, stack) {
+            final exception = err is ApiException ? err : ApiException.server(err.toString());
+            return ApiErrorWidget(
+              error: exception,
+              onRetry: () => ref.refresh(attendanceControllerProvider(widget.sectionId, widget.date)),
+            );
+          },
           data: (state) {
             final students = state.students;
             if (students.isEmpty) {

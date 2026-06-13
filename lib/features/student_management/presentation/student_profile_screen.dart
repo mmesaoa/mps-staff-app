@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:school_erp_staff_app/core/api/api_client.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'student_profile_controller.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 class StudentProfileScreen extends ConsumerWidget {
   final int studentId;
@@ -17,11 +17,12 @@ class StudentProfileScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(studentProfileControllerProvider(studentId).future),
         child: profileState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => SkeletonLoaders.profilePage(),
           error: (err, stack) => Center(child: Text('Error: $err')),
           data: (profile) {
             // ✅ 2. GET API CLIENT FROM RIVERPOD
             final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
+            final String baseStorageUrl = storageBaseUrl.endsWith('/') ? storageBaseUrl : '$storageBaseUrl/';
 
             // Construct the full URL if the path exists
             final photoPath = profile['photo_url'] ?? profile['student_photo'];
@@ -30,8 +31,11 @@ class StudentProfileScreen extends ConsumerWidget {
               if (photoPath.toString().startsWith('http')) {
                 photoUrl = photoPath.toString();
               } else {
-                photoUrl = '$storageBaseUrl$photoPath';
+                final cleanPath = photoPath.toString().startsWith('/') ? photoPath.toString().substring(1) : photoPath.toString();
+                photoUrl = '$baseStorageUrl$cleanPath';
               }
+              final separator = photoUrl.contains('?') ? '&' : '?';
+              photoUrl = '$photoUrl${separator}t=${DateTime.now().millisecondsSinceEpoch}';
             }
 
             final feeSummary = profile['fee_summary'] as Map<String, dynamic>? ?? {};
@@ -45,25 +49,106 @@ class StudentProfileScreen extends ConsumerWidget {
                 _SummaryCards(profile: profile, feeSummary: feeSummary),
                 const SizedBox(height: 16),
                 _ProfileDetailSection(
-                  title: 'Personal Details',
+                  title: 'Academic Overview',
                   details: {
-                    'Date of Birth': profile['date_of_birth'],
-                    'Gender': profile['gender'],
-                    'Blood Group': profile['blood_group'],
-                    'Category': profile['category'],
+                    'Status': profile['status'],
+                    'Admission Date': profile['admission_date'],
+                    'PEN Number': profile['pen_number'],
+                    'Biometric ID': profile['biometric_id'],
+                    'House': profile['house'],
                   },
                 ),
                 _ProfileDetailSection(
-                  title: 'Parent & Contact Information',
+                  title: 'Personal Details',
+                  details: {
+                    'Date of Birth': profile['date_of_birth'],
+                    'Place of Birth': profile['place_of_birth'],
+                    'Gender': profile['gender'],
+                    'Nationality': profile['nationality'],
+                    'Religion': profile['religion'],
+                    'Caste': profile['caste'],
+                    'Sub Caste': profile['sub_caste'],
+                    'Blood Group': profile['blood_group'],
+                    'Mother Tongue': profile['mother_tongue'],
+                    'Category': profile['category'],
+                    'Is BPL?': profile['is_bpl'],
+                    'Is RTE?': profile['is_rte'],
+                  },
+                ),
+                _ProfileDetailSection(
+                  title: 'Contact & Addresses',
                   details: {
                     'Student Phone': profile['student_phone'],
                     'Student Email': profile['student_email'],
-                    'Father Name': profile['father_name'],
-                    'Father Phone': profile['father_phone'],
-                    'Mother Name': profile['mother_name'],
-                    'Mother Phone': profile['mother_phone'],
+                    'Parent Email': profile['parent_email'],
+                    'Current Address': profile['current_address'],
+                    'Permanent Address': profile['permanent_address'],
                   },
                 ),
+                _ProfileDetailSection(
+                  title: 'Father Details',
+                  details: {
+                    'Name': profile['father_name'],
+                    'Phone': profile['father_phone'],
+                    'Occupation': profile['father_occupation'],
+                    'Qualification': profile['father_qualification'],
+                    'Annual Income': profile['father_annual_income'],
+                    'Aadhaar': profile['father_aadhaar'],
+                  },
+                ),
+                _ProfileDetailSection(
+                  title: 'Mother Details',
+                  details: {
+                    'Name': profile['mother_name'],
+                    'Phone': profile['mother_phone'],
+                    'Occupation': profile['mother_occupation'],
+                    'Qualification': profile['mother_qualification'],
+                    'Aadhaar': profile['mother_aadhaar'],
+                  },
+                ),
+                if (profile['guardian_name'] != null && profile['guardian_name'] != 'N/A')
+                  _ProfileDetailSection(
+                    title: 'Guardian Details',
+                    details: {
+                      'Name': profile['guardian_name'],
+                      'Relation': profile['guardian_relation'],
+                      'Phone': profile['guardian_phone'],
+                      'Email': profile['guardian_email'],
+                      'Occupation': profile['guardian_occupation'],
+                      'Address': profile['guardian_address'],
+                    },
+                  ),
+                _ProfileDetailSection(
+                  title: 'Health & Medical',
+                  details: {
+                    'Height': profile['height'],
+                    'Weight': profile['weight'],
+                    'Medical History': profile['medical_history'],
+                  },
+                ),
+                _ProfileDetailSection(
+                  title: 'Emergency Contact',
+                  details: {
+                    'Name': profile['emergency_contact_name'],
+                    'Phone': profile['emergency_contact_phone'],
+                  },
+                ),
+                _ProfileDetailSection(
+                  title: 'Bank Details',
+                  details: {
+                    'Bank Name': profile['bank_name'],
+                    'Account No': profile['bank_account_no'],
+                    'IFSC Code': profile['ifsc_code'],
+                    'National ID': profile['national_id_number'],
+                  },
+                ),
+                if (profile['previous_school_details'] != null && profile['previous_school_details'] != 'N/A')
+                  _ProfileDetailSection(
+                    title: 'Previous School',
+                    details: {
+                      'Details': profile['previous_school_details'],
+                    },
+                  ),
               ],
             );
           },
@@ -84,15 +169,23 @@ class _ProfileHeader extends StatelessWidget {
     return Center(
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 50,
-            // ✅ 5. USE THE FULL URL
-            backgroundImage: fullPhotoUrl != null
-                ? NetworkImage(fullPhotoUrl!)
-                : null,
-            child: fullPhotoUrl == null
-                ? const Icon(Icons.person, size: 50)
-                : null,
+          Container(
+            height: 100,
+            width: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).primaryColor,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: fullPhotoUrl != null
+                ? Image.network(
+                    fullPhotoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.person, size: 50, color: Colors.white);
+                    },
+                  )
+                : const Icon(Icons.person, size: 50, color: Colors.white),
           ),
           const SizedBox(height: 16),
           Text(profile['full_name'] ?? 'N/A', style: Theme.of(context).textTheme.headlineSmall),
@@ -202,9 +295,17 @@ class _ProfileDetailSection extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(entry.key, style: TextStyle(color: Colors.grey.shade600)),
-                    Text(entry.value!, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        entry.value!, 
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
                   ],
                 ),
               )),

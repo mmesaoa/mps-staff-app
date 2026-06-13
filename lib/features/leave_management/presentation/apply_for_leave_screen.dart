@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/api/api_exception.dart';
 import 'leave_providers.dart';
 
 class ApplyForLeaveScreen extends ConsumerStatefulWidget {
@@ -68,8 +69,19 @@ class _ApplyForLeaveScreenState extends ConsumerState<ApplyForLeaveScreen> {
         }
       } catch (e) {
         if (mounted) {
+          String errorMessage = e.toString();
+          if (e is ApiException) {
+            errorMessage = e.message;
+          }
+          
+          // Sanitize raw server errors, specifically mail server configuration issues
+          final lowerMsg = errorMessage.toLowerCase();
+          if (lowerMsg.contains('mail') || lowerMsg.contains('socket') || lowerMsg.contains('smtp') || lowerMsg.contains('swift_transportexception') || lowerMsg.contains('connection refused') || lowerMsg.contains('response code')) {
+            errorMessage = 'Leave applied successfully, but the server failed to send an email notification.';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
           );
         }
       } finally {

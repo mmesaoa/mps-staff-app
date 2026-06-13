@@ -181,7 +181,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.primary : Colors.grey[200],
+          color: isUser ? AppColors.primary : AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(16).copyWith(
             bottomRight: isUser ? Radius.zero : const Radius.circular(16),
             bottomLeft: isAI ? Radius.zero : const Radius.circular(16),
@@ -328,7 +328,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             Container(
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 boxShadow: [
                   BoxShadow(color: Colors.grey.withAlpha((0.1 * 255).round()), spreadRadius: 1, blurRadius: 5)
                 ],
@@ -342,7 +342,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                         hintText: 'Type a message...',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: AppColors.surfaceVariant,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       ),
                       onSubmitted: (_) => _sendMessage(),

@@ -8,9 +8,9 @@ class ApiClient {
   final String storageBaseUrl;
 
   // This is the base URL for your API endpoints
-  // ✅ ENFORCED HTTPS (Keep http only for local Android emulator development)
-  static const String _apiBaseUrl = 'https://multischoolv2.projectworlds.com/api/v1/'; 
-  // Note: For production, you should replace 10.0.2.2 with your actual domain.
+  // ✅ Switched to local backend for testing Student Analytics Dashboard
+  static const String _apiBaseUrl = 'http://10.0.2.2:8000/api/v1/'; 
+  // static const String _apiBaseUrl = 'https://multischoolv2.projectworlds.com/api/v1/';
 
   ApiClient()
       : dio = Dio(

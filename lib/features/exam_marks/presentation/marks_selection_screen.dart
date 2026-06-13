@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import '../domain/marks_models.dart';
 import 'marks_controller.dart';
 import 'marks_entry_screen.dart';
@@ -84,7 +85,7 @@ class _MarksSelectionScreenState extends ConsumerState<MarksSelectionScreen> {
         // Add a minimum padding to ensure the button doesn't touch the edges.
         minimum: const EdgeInsets.all(16.0),
         child: options.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => SkeletonLoaders.dashboard(),
           error: (e, st) => Center(child: Text('Error: $e')),
           data: (data) {
             final List<Exam> exams = data['exams'] ?? []; // Add null check for safety

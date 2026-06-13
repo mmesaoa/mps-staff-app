@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 
 class ScaffoldWithNavBar extends ConsumerWidget {
   /// The navigation shell and container for the branch Navigators.
@@ -14,16 +14,13 @@ class ScaffoldWithNavBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Determine the user's role to customize the 2nd tab
-    final user = ref.watch(authControllerProvider).value;
-    final isAdmin = user?.role == 'school_admin';
-    final isTeacher = user?.role == 'teacher';
+    final perms = ref.watch(permissionProvider);
 
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (int index) => _onTap(context, index),
+        onDestinationSelected: (int index) => _onTap(context, ref, index),
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -31,14 +28,14 @@ class ScaffoldWithNavBar extends ConsumerWidget {
             label: 'Home',
           ),
           
-          // DYNAMIC 2nd TAB
-          if (isAdmin)
+          // DYNAMIC 2nd TAB — driven by permission state, not raw strings
+          if (perms.isAdmin)
             const NavigationDestination(
               icon: Icon(Icons.analytics_outlined),
               selectedIcon: Icon(Icons.analytics),
               label: 'Attendance', // Admin views Staff Attendance
             )
-          else if (isTeacher)
+          else if (perms.isTeacher)
             const NavigationDestination(
               icon: Icon(Icons.schedule_outlined),
               selectedIcon: Icon(Icons.schedule),
@@ -66,13 +63,20 @@ class ScaffoldWithNavBar extends ConsumerWidget {
     );
   }
 
-  void _onTap(BuildContext context, int index) {
-    // When navigating to a new branch, it's recommended to use the goBranch
-    // method, as doing so ensures the last navigation state of the
-    // branch (if there is one) is restored.
+  void _onTap(BuildContext context, WidgetRef ref, int index) {
+    if (index == 1) {
+      final perms = ref.read(permissionProvider);
+      if (perms.isTeacher && !perms.isAdmin) {
+        context.go('/my-timetable');
+        return;
+      } else {
+        context.go('/staff-reports');
+        return;
+      }
+    }
+
     navigationShell.goBranch(
       index,
-      // A common pattern when tapping an active tab is to go to the initial location
       initialLocation: index == navigationShell.currentIndex,
     );
   }

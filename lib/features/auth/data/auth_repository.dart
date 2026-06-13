@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
 
 /// Result from login or OTP verify.
@@ -67,9 +68,9 @@ class AuthRepository {
       final response = await _apiClient.dio.get('/staff/profile');
       return User.fromJson(response.data['data']);
     } on DioException catch (e) {
-      throw e.response?.data['message'] ?? 'Your session has expired.';
+      throw ApiException.fromDioException(e);
     } catch (e) {
-      throw 'Could not verify session. Please check your network connection.';
+      throw const ApiException.network('Could not verify session. Please check your network connection.');
     }
   }
 
@@ -110,15 +111,10 @@ class AuthRepository {
         return LoginResult(otpRequired: false, token: token, user: user);
       }
     } on DioException catch (e) {
-      // This part is crucial for showing correct error messages from Laravel.
-      final responseData = e.response?.data;
-      if (responseData is Map && responseData.containsKey('errors')) {
-        throw responseData['errors'].values.first[0];
-      }
-      throw responseData?['message'] ?? 'An unknown error occurred.';
+      throw ApiException.fromDioException(e);
     } catch (e) {
-      if (e is String) rethrow;
-      throw 'Could not connect to the server. Please try again later.';
+      if (e is ApiException) rethrow;
+      throw const ApiException.network('Could not connect to the server. Please try again later.');
     }
   }
 
@@ -158,15 +154,10 @@ class AuthRepository {
         userId: data['user_id'] as int?,
       );
     } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      final data = e.response?.data;
-      if (data is Map && data.containsKey('error')) {
-        throw data['error'];
-      }
-      throw 'API Error [$status] on ${e.requestOptions.uri}: ${e.message}';
+      throw ApiException.fromDioException(e);
     } catch (e) {
-      if (e is String) rethrow;
-      throw 'Connection Error: ${e.toString()}';
+      if (e is ApiException) rethrow;
+      throw ApiException.network('Connection Error: ${e.toString()}');
     }
   }
 
@@ -192,14 +183,10 @@ class AuthRepository {
 
       return LoginResult(otpRequired: false, token: token, user: user);
     } on DioException catch (e) {
-      final data = e.response?.data;
-      if (data is Map && data.containsKey('error')) {
-        throw data['error'];
-      }
-      throw 'OTP verification failed. Please try again.';
+      throw ApiException.fromDioException(e);
     } catch (e) {
-      if (e is String) rethrow;
-      throw 'Could not connect to the server.';
+      if (e is ApiException) rethrow;
+      throw const ApiException.network('Could not connect to the server.');
     }
   }
 
@@ -227,14 +214,10 @@ class AuthRepository {
         resendCooldown: data['resend_cooldown'] as int? ?? 60,
       );
     } on DioException catch (e) {
-      final data = e.response?.data;
-      if (data is Map && data.containsKey('error')) {
-        throw data['error'];
-      }
-      throw 'Could not resend OTP.';
+      throw ApiException.fromDioException(e);
     } catch (e) {
-      if (e is String) rethrow;
-      throw 'Could not connect to the server.';
+      if (e is ApiException) rethrow;
+      throw const ApiException.network('Could not connect to the server.');
     }
   }
 }

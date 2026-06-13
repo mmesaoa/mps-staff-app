@@ -19,6 +19,9 @@ class BiometricService {
     } on PlatformException catch (e) {
       debugPrint("❌ [Biometric] Availability check failed: $e");
       return false;
+    } catch (e) {
+      debugPrint("❌ [Biometric] Unexpected error checking availability: $e");
+      return false;
     }
   }
 
@@ -40,7 +43,10 @@ class BiometricService {
         ),
       );
     } on PlatformException catch (e) {
-      debugPrint("❌ [Biometric] Authentication failed: $e");
+      debugPrint("❌ [Biometric] Authentication PlatformException: $e");
+      return false;
+    } catch (e) {
+      debugPrint("❌ [Biometric] Unexpected authentication error: $e");
       return false;
     } finally {
       _isAuthenticating = false;

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
 import '../data/attendance_repository.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'attendance_providers.dart';
 
 class SelfAttendanceScreen extends ConsumerStatefulWidget {
@@ -215,8 +216,9 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        appBar: AppBar(title: const Text('My Attendance'), centerTitle: true),
+        body: SkeletonLoaders.dashboard(),
       );
     }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:intl/intl.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'leave_providers.dart';
 
 class AdminLeaveApprovalScreen extends ConsumerStatefulWidget {
@@ -112,8 +113,25 @@ class _AdminLeaveApprovalScreenState extends ConsumerState<AdminLeaveApprovalScr
           ),
           Expanded(
             child: leaveRequestsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error loading requests: $err')),
+              loading: () => SkeletonLoaders.cardList(),
+              error: (err, stack) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(err.toString(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => ref.refresh(allLeaveRequestsProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               data: (requests) {
                 final pending = requests.where((r) => r['status'] == 'pending').toList();
                 final approved = requests.where((r) => r['status'] == 'approved').toList();
@@ -137,7 +155,28 @@ class _AdminLeaveApprovalScreenState extends ConsumerState<AdminLeaveApprovalScr
 
   Widget _buildList(List<dynamic> requests, bool isPending) {
     if (requests.isEmpty) {
-      return const Center(child: Text('No leave requests found.'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.beach_access, size: 64, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              Text(
+                'No Leave Requests',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'There are no ${isPending ? 'pending' : 'leave'} requests in this category.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return RefreshIndicator(

@@ -20,6 +20,8 @@ class UserProfile {
   final String email;
   final String? role;
   final String? avatar;
+  final String? schoolName;
+  final String? schoolLogo;
 
   UserProfile({
     required this.id,
@@ -27,6 +29,8 @@ class UserProfile {
     required this.email,
     this.role,
     this.avatar,
+    this.schoolName,
+    this.schoolLogo,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -36,6 +40,8 @@ class UserProfile {
       email: json['email'],
       role: json['role'],
       avatar: json['avatar'],
+      schoolName: json['school_name'],
+      schoolLogo: json['school_logo'],
     );
   }
 }
@@ -61,6 +67,25 @@ class StaffDetails {
   final String? qualification;
   final String? workExperience;
   final String? note;
+
+  // NEW EMPLOYMENT DETAILS
+  final String? employeeCode;
+  final String? employmentType;
+  final String? status;
+  final String? confirmationDate;
+  final int? reportingManagerId;
+
+  // NEW EMERGENCY CONTACT
+  final String? emergencyContactName;
+  final String? emergencyContactPhone;
+  final String? bloodGroup;
+
+  // NEW STATUTORY IDs
+  final String? panNumber;
+  final String? aadhaarNumber;
+  final String? pfNumber;
+  final String? esiNumber;
+  final String? uanNumber;
 
   // BANK DETAILS
   final String? bankAccountTitle;
@@ -94,6 +119,19 @@ class StaffDetails {
     this.qualification,
     this.workExperience,
     this.note,
+    this.employeeCode,
+    this.employmentType,
+    this.status,
+    this.confirmationDate,
+    this.reportingManagerId,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
+    this.bloodGroup,
+    this.panNumber,
+    this.aadhaarNumber,
+    this.pfNumber,
+    this.esiNumber,
+    this.uanNumber,
     this.bankAccountTitle,
     this.bankName,
     this.bankBranchName,
@@ -126,6 +164,22 @@ class StaffDetails {
       qualification: json['qualification'],
       workExperience: json['work_experience'],
       note: json['note'],
+
+      employeeCode: json['employee_code'],
+      employmentType: json['employment_type'],
+      status: json['status'],
+      confirmationDate: json['confirmation_date'],
+      reportingManagerId: json['reporting_manager_id'],
+
+      emergencyContactName: json['emergency_contact_name'],
+      emergencyContactPhone: json['emergency_contact_phone'],
+      bloodGroup: json['blood_group'],
+
+      panNumber: json['pan_number'],
+      aadhaarNumber: json['aadhaar_number'],
+      pfNumber: json['pf_number'],
+      esiNumber: json['esi_number'],
+      uanNumber: json['uan_number'],
 
       bankAccountTitle: json['bank_account_title'],
       bankName: json['bank_name'],

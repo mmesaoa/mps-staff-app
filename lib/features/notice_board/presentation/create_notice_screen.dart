@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:school_erp_staff_app/features/attendance/presentation/attendance_providers.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import 'notice_providers.dart';
 
 class CreateNoticeScreen extends ConsumerStatefulWidget {
@@ -14,21 +17,30 @@ class CreateNoticeScreen extends ConsumerStatefulWidget {
 class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _contentController = TextEditingController();
+  final quill.QuillController _quillController = quill.QuillController.basic();
 
-  String _recipientType = 'all'; // Default recipient
+  String _recipientType = 'class'; // Default to class to be safe for teachers
   dynamic _selectedClass;
   bool _isLoading = false;
+  bool _initialized = false;
 
   @override
   void dispose() {
     _titleController.dispose();
-    _contentController.dispose();
+    _quillController.dispose();
     super.dispose();
   }
 
   Future<void> _submitNotice() async {
     if (_formKey.currentState!.validate()) {
+      // Validate content manually since it's no longer a TextFormField
+      if (_quillController.document.isEmpty()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter the notice content.')),
+        );
+        return;
+      }
+
       // Additional validation for class selection
       if (_recipientType == 'class' && _selectedClass == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -40,9 +52,16 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
       setState(() => _isLoading = true);
 
       try {
+        // Convert the Quill Delta to HTML
+        final deltaJson = _quillController.document.toDelta().toJson();
+        // The converter expects a List<Map<String, dynamic>> but toJson might return List<dynamic>
+        final List<Map<String, dynamic>> deltaOps = List<Map<String, dynamic>>.from(deltaJson);
+        final converter = QuillDeltaToHtmlConverter(deltaOps);
+        final htmlContent = converter.convert();
+
         await ref.read(createNoticeControllerProvider).submitNotice(
               title: _titleController.text,
-              content: _contentController.text,
+              content: htmlContent,
               publishedAt: DateFormat('yyyy-MM-dd').format(DateTime.now()),
               recipientType: _recipientType,
               noticableId: _selectedClass?['id'],
@@ -72,6 +91,17 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
   Widget build(BuildContext context) {
     // We need the list of classes for the dropdown
     final classesState = ref.watch(classesProvider);
+    final perms = ref.watch(permissionProvider);
+    
+    // Initialize default selection based on role
+    if (!_initialized) {
+      if (perms.isAdmin || !perms.isTeacher) {
+        _recipientType = 'all';
+      } else {
+        _recipientType = 'class';
+      }
+      _initialized = true;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -90,23 +120,60 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
                 validator: (value) => (value?.isEmpty ?? true) ? 'Please enter a title.' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _contentController,
-                decoration: const InputDecoration(
-                  labelText: 'Content',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
+              
+              // Native Quill Editor
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                maxLines: 8,
-                validator: (value) => (value?.isEmpty ?? true) ? 'Please enter the notice content.' : null,
+                child: Column(
+                  children: [
+                    quill.QuillSimpleToolbar(
+                      controller: _quillController,
+                      config: const quill.QuillSimpleToolbarConfig(
+                        showFontFamily: false,
+                        showFontSize: false,
+                        showSubscript: false,
+                        showSuperscript: false,
+                        showInlineCode: false,
+                        showCodeBlock: false,
+                        showSearchButton: false,
+                        showIndent: false,
+                        showDirection: false,
+                        showColorButton: false,
+                        showBackgroundColorButton: false,
+                        showClipboardCopy: false,
+                        showClipboardCut: false,
+                        showClipboardPaste: false,
+                        showListCheck: false,
+                        showHeaderStyle: false,
+                        showStrikeThrough: false,
+                        showClearFormat: false,
+                        multiRowsDisplay: false,
+                      ),
+                    ),
+                    const Divider(height: 1, thickness: 1),
+                    Container(
+                      height: 200,
+                      padding: const EdgeInsets.all(8.0),
+                      child: quill.QuillEditor.basic(
+                        controller: _quillController,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
+              
               DropdownButtonFormField<String>(
                 value: _recipientType,
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All Users')),
-                  DropdownMenuItem(value: 'parents', child: Text('All Parents')),
-                  DropdownMenuItem(value: 'class', child: Text('A Specific Class')),
+                items: [
+                  if (perms.isAdmin || !perms.isTeacher) ...[
+                    const DropdownMenuItem(value: 'all', child: Text('All Users')),
+                    const DropdownMenuItem(value: 'parents', child: Text('All Parents')),
+                  ],
+                  const DropdownMenuItem(value: 'class', child: Text('A Specific Class')),
                 ],
                 onChanged: (value) {
                   setState(() {

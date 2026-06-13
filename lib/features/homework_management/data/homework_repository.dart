@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
 
 class HomeworkRepository {
-  // ✅ THE FIX: Added the constructor to accept the ApiClient.
   final ApiClient _apiClient;
   HomeworkRepository(this._apiClient);
 
@@ -11,28 +10,56 @@ class HomeworkRepository {
     required String marks,
     String? remarks,
   }) async {
-    await _apiClient.dio.post(
-      '/staff/submissions/$submissionId/evaluate',
-      data: {
-        'marks': marks,
-        'remarks': remarks ?? '',
-      },
-    );
+    try {
+      await _apiClient.dio.post(
+        '/staff/submissions/$submissionId/evaluate',
+        data: {
+          'marks': marks,
+          'remarks': remarks ?? '',
+        },
+      );
+    } on DioException catch (e) {
+      if (e.response?.data is Map) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to evaluate submission.');
+      }
+      throw Exception('Failed to evaluate submission.');
+    }
   }
 
   Future<List<dynamic>> getHomeworkList() async {
-    final response = await _apiClient.dio.get('/staff/homework');
-    return response.data['data'];
+    try {
+      final response = await _apiClient.dio.get('/staff/homework');
+      return response.data['data'] ?? [];
+    } on DioException catch (e) {
+      if (e.response?.data is Map) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to fetch homework list.');
+      }
+      throw Exception('Failed to fetch homework list.');
+    }
   }
 
   Future<Map<String, dynamic>> getHomeworkDetails(int homeworkId) async {
-    final response = await _apiClient.dio.get('/staff/homework/$homeworkId');
-    return response.data['data'];
+    try {
+      final response = await _apiClient.dio.get('/staff/homework/$homeworkId');
+      return response.data['data'] ?? {};
+    } on DioException catch (e) {
+      if (e.response?.data is Map) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to fetch homework details.');
+      }
+      throw Exception('Failed to fetch homework details.');
+    }
   }
 
   Future<List<dynamic>> getSubjectsForClass(int classId) async {
-    final response = await _apiClient.dio.get('/staff/data/subjects-for-class/$classId');
-    return response.data['data'];
+    try {
+      final response = await _apiClient.dio.get('/staff/data/subjects-for-class/$classId');
+      return response.data['data'] ?? [];
+    } on DioException catch (e) {
+      if (e.response?.data is Map) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to fetch subjects.');
+      }
+      throw Exception('Failed to fetch subjects.');
+    }
   }
 
   Future<void> createHomework({
@@ -54,6 +81,13 @@ class HomeworkRepository {
       if (filePath != null) 'file': await MultipartFile.fromFile(filePath),
     });
 
-    await _apiClient.dio.post('/staff/homework', data: formData);
+    try {
+      await _apiClient.dio.post('/staff/homework', data: formData);
+    } on DioException catch (e) {
+      if (e.response?.data is Map) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to create homework.');
+      }
+      throw Exception('Failed to create homework. Check the attached file format and size.');
+    }
   }
 }

@@ -7,8 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/config/app_colors.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/auth/app_permission.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
-import 'package:school_erp_staff_app/utils/string_helpers.dart';
 
 class AnalyticsHeroHeader extends ConsumerWidget {
   final Map<String, dynamic> data;
@@ -16,15 +17,8 @@ class AnalyticsHeroHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rawRole = data['role'] ?? 'staff';
-    final String displayRole;
-    if (rawRole == 'school_admin') {
-      displayRole = 'Administrator';
-    } else if (rawRole == 'teacher') {
-      displayRole = 'Teacher';
-    } else {
-      displayRole = rawRole.toString().capitalize();
-    }
+    final perms = ref.watch(permissionProvider);
+    final displayRole = perms.displayRoleName;
 
     final user = ref.watch(authControllerProvider).value;
     final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
@@ -190,18 +184,17 @@ class AnalyticsHeroHeader extends ConsumerWidget {
   }
 }
 
-class AnalyticsTopMetricsRow extends StatelessWidget {
+class AnalyticsTopMetricsRow extends ConsumerWidget {
   final Map<String, dynamic> data;
   const AnalyticsTopMetricsRow({super.key, required this.data});
 
-  List<_HeroChipData> _getMetrics() {
-    final role = data['role'];
-    if (role == 'school_admin') {
+  List<_HeroChipData> _getMetrics(PermissionState perms) {
+    if (perms.isAdmin) {
       return [
         _HeroChipData(Icons.check_circle_outline, '${data['student_attendance_percentage'] ?? 0}%', 'Attendance'),
         _HeroChipData(Icons.account_balance_wallet_outlined, '${data['currency_symbol'] ?? ''}${data['monthly_fee_collected']?.toStringAsFixed(0) ?? 0}', 'Collected'),
       ];
-    } else if (role == 'teacher') {
+    } else if (perms.isTeacher) {
       return [
         _HeroChipData(Icons.class_outlined, '${data['classes_today'] ?? 0}', 'Classes'),
         _HeroChipData(Icons.group_outlined, '${data['total_assigned_students'] ?? 0}', 'Students'),
@@ -215,8 +208,9 @@ class AnalyticsTopMetricsRow extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final metrics = _getMetrics();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perms = ref.watch(permissionProvider);
+    final metrics = _getMetrics(perms);
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -226,7 +220,7 @@ class AnalyticsTopMetricsRow extends StatelessWidget {
             margin: EdgeInsets.only(right: m == metrics.last ? 0 : 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -489,55 +483,107 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
   const AnalyticsQuickLinksRow({super.key, required this.data});
 
   static List<QuickLinkItem> getQuickLinks(BuildContext context, WidgetRef ref, Map<String, dynamic> data) {
-    final role = data['role']?.toString().toLowerCase() ?? '';
-    final isAdmin = role == 'school_admin';
-    final isTeacher = role == 'teacher';
-    final isAcademic = isAdmin || isTeacher;
+    final perms = ref.watch(permissionProvider);
 
     final List<QuickLinkItem> quickLinks = [];
 
-    // --- ACADEMIC / DAILY LINKS ---
-    if (!isAdmin) {
+    // --- SELF-SERVICE LINKS ---
+    if (perms.can(AppPermission.selfAttendanceView) && !perms.isAdmin) {
       quickLinks.add(QuickLinkItem(icon: Icons.fingerprint, label: 'My Attend.', color: AppColors.iconFgNotices, onTap: () => context.go('/dashboard/self-attendance')));
     }
-    if (isAcademic) {
-      quickLinks.add(QuickLinkItem(icon: Icons.calendar_month_outlined, label: 'Attendance', color: AppColors.iconFgAttendance, onTap: () => context.go('/dashboard/attendance')));
-      quickLinks.add(QuickLinkItem(icon: Icons.grading_outlined, label: 'Marks', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/exam-marks')));
+
+    // --- ACADEMIC LINKS ---
+    if (perms.can(AppPermission.academicsDashboardView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.school_outlined, label: 'Academics', color: AppColors.iconFgStudents, onTap: () => context.go('/dashboard/academics')));
     }
-    if (isAdmin) {
+    if (perms.can(AppPermission.attendanceTake)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.calendar_month_outlined, label: 'Attendance', color: AppColors.iconFgAttendance, onTap: () => context.go('/dashboard/attendance')));
+    }
+    if (perms.can(AppPermission.examMarksEntry)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.grading_outlined, label: 'Marks', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/exam-marks')));
+      quickLinks.add(QuickLinkItem(icon: Icons.bar_chart, label: 'Exams', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/offline-exams')));
+    }
+    if (perms.can(AppPermission.transportManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.directions_bus, label: 'Transport', color: AppColors.iconFgTimetable, onTap: () => context.go('/dashboard/transport')));
+    }
+    
+    if (perms.can(AppPermission.frontOfficeManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.business, label: 'Front Office', color: Colors.blue, onTap: () => context.go('/dashboard/front-office')));
+    }
+
+    if (perms.can(AppPermission.inventoryDashboardView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.inventory_2, label: 'Inventory', color: Colors.indigo, onTap: () => context.go('/dashboard/inventory')));
+    }
+
+    if (perms.can(AppPermission.assetDashboardView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.business_center, label: 'Assets', color: Colors.blueGrey, onTap: () => context.go('/dashboard/assets')));
+    }
+
+    if (perms.can(AppPermission.libraryManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.local_library, label: 'Library', color: Colors.indigo, onTap: () => context.go('/dashboard/library')));
+    }
+
+    if (perms.can(AppPermission.hostelManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.apartment, label: 'Hostel', color: Colors.orange, onTap: () => context.go('/dashboard/hostel')));
+    }
+
+    if (perms.can(AppPermission.cbcManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.account_tree, label: 'CBC', color: Colors.teal, onTap: () => context.go('/dashboard/cbc')));
+    }
+
+    if (perms.can(AppPermission.ptmManage) || perms.can(AppPermission.ptmAttendanceManage) || perms.can(AppPermission.ptmRemarkManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.handshake, label: 'PTM Meetings', color: Colors.indigo, onTap: () => context.go('/dashboard/ptm')));
+    }
+
+    if (perms.can(AppPermission.lessonPlanManage)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.menu_book, label: 'Lesson Planner', color: Colors.blueGrey, onTap: () => context.go('/dashboard/lesson-plans')));
+    }
+
+    if (perms.can(AppPermission.hrStaffAttendanceMark)) {
       quickLinks.add(QuickLinkItem(icon: Icons.how_to_reg_outlined, label: 'Staff Attend.', color: AppColors.accent, onTap: () => context.go('/dashboard/mark-staff-attendance')));
-    } else if (isTeacher) {
+    } else if (perms.can(AppPermission.homeworkManage) && perms.isTeacher) {
       quickLinks.add(QuickLinkItem(icon: Icons.edit_document, label: 'Homework', color: AppColors.accent, onTap: () => context.go('/dashboard/homework')));
+      quickLinks.add(QuickLinkItem(icon: Icons.menu_book, label: 'Classwork', color: Colors.green, onTap: () => context.go('/dashboard/classwork')));
     }
 
     // --- MANAGEMENT LINKS ---
-    if (isAcademic) {
+    if (perms.can(AppPermission.studentView)) {
       quickLinks.add(QuickLinkItem(icon: Icons.person_search, label: 'Students', color: AppColors.iconFgStudents, onTap: () => context.go('/dashboard/student-search')));
     }
-    if (isAdmin) {
+    if (perms.can(AppPermission.hrStaffView)) {
       quickLinks.add(QuickLinkItem(icon: Icons.badge_outlined, label: 'Staff List', color: AppColors.iconFgStaff, onTap: () => context.go('/dashboard/staff-list')));
     }
     
     // --- PERSONAL / HR LINKS ---
-    if (isAdmin) {
+    if (perms.can(AppPermission.hrStaffAttendanceReport)) {
       quickLinks.add(QuickLinkItem(icon: Icons.analytics_outlined, label: 'Logs', color: AppColors.iconFgChatbot, onTap: () => context.go('/staff-reports')));
-    } else {
+    } else if (perms.can(AppPermission.selfAttendanceView)) {
       quickLinks.add(QuickLinkItem(icon: Icons.analytics_outlined, label: 'My Logs', color: AppColors.iconFgChatbot, onTap: () => context.go('/staff-reports')));
+    }
+    if (perms.can(AppPermission.selfLeaveApply)) {
       quickLinks.add(QuickLinkItem(icon: Icons.check_circle_outline, label: 'Leaves', color: AppColors.iconFgLeave, onTap: () => context.go('/dashboard/my-leave')));
     }
-    if (isAdmin) {
+    if (perms.can(AppPermission.hrLeaveApprove)) {
       quickLinks.add(QuickLinkItem(icon: Icons.approval_outlined, label: 'Staff Leave', color: AppColors.accent, onTap: () => context.go('/dashboard/staff-leave-approval')));
     }
     quickLinks.add(QuickLinkItem(icon: Icons.person_outline, label: 'Profile', color: AppColors.iconFgProfile, onTap: () => context.go('/my-profile')));
     
-    if (isTeacher) {
+    if (perms.can(AppPermission.timetableView) && perms.isTeacher) {
       quickLinks.add(QuickLinkItem(icon: Icons.schedule, label: 'Timetable', color: AppColors.iconFgTimetable, onTap: () => context.go('/my-timetable')));
     }
-    if (isAdmin) {
+    if (perms.can(AppPermission.feesViewReport)) {
       quickLinks.add(QuickLinkItem(icon: Icons.account_balance_wallet_outlined, label: 'Fees Due', color: AppColors.iconFgFees, onTap: () => context.go('/dashboard/fees-reports')));
     }
 
+    // --- COMMUNICATION LINKS ---
+    if (perms.can(AppPermission.communicationLogView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.history, label: 'Comm. Log', color: AppColors.iconFgComms, onTap: () => context.go('/dashboard/communication-log')));
+    }
+
     // --- SYSTEM LINKS ---
+    if (perms.can(AppPermission.systemAuditTrailView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.admin_panel_settings_outlined, label: 'Audit Trail', color: AppColors.iconFgChatbot, onTap: () => context.go('/dashboard/audit-trail')));
+    }
     quickLinks.add(QuickLinkItem(icon: Icons.campaign_outlined, label: 'Notices', color: AppColors.iconFgComms, onTap: () => context.go('/notices')));
     quickLinks.add(QuickLinkItem(icon: Icons.logout, label: 'Logout', color: AppColors.error, onTap: () => ref.read(authControllerProvider.notifier).logout()));
 

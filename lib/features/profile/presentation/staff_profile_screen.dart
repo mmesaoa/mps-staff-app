@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/features/profile/presentation/widgets/staff_id_card_modal.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/features/profile/data/staff_profile_models.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
-import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
+import 'package:school_erp_staff_app/core/auth/app_permission.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import 'widgets/change_password_dialog.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 class StaffProfileScreen extends ConsumerStatefulWidget {
   const StaffProfileScreen({super.key});
@@ -41,10 +45,18 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
         _profileData = StaffProfileData.fromJson(response.data);
         _isLoading = false;
       });
+    } on DioException catch (e) {
+      final apiException = ApiException.fromDioException(e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = apiException.message;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = 'An unexpected error occurred.';
           _isLoading = false;
         });
       }
@@ -99,25 +111,65 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
   Widget build(BuildContext context) {
     return MainScaffold(
       title: 'My Profile',
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : _errorMessage != null
-          ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-          : _profileData == null 
-            ? const Center(child: Text('No profile data found.'))
-            : RefreshIndicator(
-                onRefresh: _fetchProfile,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    children: [
-                      _buildHeaderConfig(context),
-                      _buildInfoCards(context),
-                      const SizedBox(height: 30),
-                    ],
+      actions: [
+        // Only show ID Card for staff/faculty with actual employee records
+        if (_profileData?.staff != null)
+          IconButton(
+            icon: const Icon(Icons.badge_outlined),
+            tooltip: 'ID Card',
+            onPressed: () {
+              if (_profileData != null) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => StaffIdCardModal(
+                    profileData: _profileData!,
+                    schoolName: _profileData!.user.schoolName ?? 'School Name',
                   ),
+                );
+              }
+            },
+          ),
+        IconButton(
+          icon: const Icon(Icons.lock_reset),
+          tooltip: 'Change Password',
+          onPressed: _showChangePasswordDialog,
+        ),
+      ],
+      body: _isLoading 
+        ? SkeletonLoaders.profilePage()
+        : _errorMessage != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _fetchProfile,
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
+            )
+          : _profileData == null 
+            ? const Center(child: Text('No profile data found.'))
+              : RefreshIndicator(
+                  onRefresh: _fetchProfile,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        _buildHeaderConfig(context),
+                        _buildInfoCards(context),
+                      ],
+                    ),
+                  ),
+                ),
     );
   }
 
@@ -132,7 +184,7 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
       if (user.avatar!.startsWith('http')) {
         fullAvatarUrl = user.avatar;
       } else {
-        fullAvatarUrl = '$storageBaseUrl${user.avatar}';
+        fullAvatarUrl = '$storageBaseUrl/${user.avatar!.replaceFirst(RegExp(r'^/+'), '')}';
       }
       // Add timestamp to break cache
       fullAvatarUrl = '$fullAvatarUrl?t=${DateTime.now().millisecondsSinceEpoch}';
@@ -140,61 +192,83 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
 
     return Container(
       width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.primaryColor,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      padding: const EdgeInsets.only(top: 16, bottom: 36, left: 20, right: 20),
       child: Column(
         children: [
-          Stack(
-            alignment: Alignment.bottomRight,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 56,
-                backgroundColor: theme.primaryColor.withOpacity(0.1),
-                backgroundImage: fullAvatarUrl != null ? NetworkImage(fullAvatarUrl) : null,
-                child: fullAvatarUrl == null ? Text(user.name[0].toUpperCase(), style: TextStyle(fontSize: 44, color: theme.primaryColor)) : null,
-              ),
-              if (_isUploading)
-                const Positioned.fill(
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
-                )
-              else if (ref.watch(authControllerProvider).value?.role != 'school_admin')
-                GestureDetector(
-                  onTap: _pickAndUploadImage,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: theme.primaryColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      backgroundImage: fullAvatarUrl != null ? NetworkImage(fullAvatarUrl) : null,
+                      child: fullAvatarUrl == null ? Text(user.name[0].toUpperCase(), style: TextStyle(fontSize: 32, color: theme.primaryColor)) : null,
+                    ),
                   ),
+                  if (_isUploading)
+                    const Positioned.fill(
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  else if (ref.watch(permissionProvider).can(AppPermission.profilePhotoUpload))
+                    GestureDetector(
+                      onTap: _pickAndUploadImage,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: theme.primaryColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                    if (staff?.designation != null && staff!.designation != 'N/A')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2.0),
+                        child: Text(staff.designation!, style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.9))),
+                      ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2), 
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.circle, color: Colors.greenAccent, size: 8),
+                          SizedBox(width: 6),
+                          Text('ACTIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1.0)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+              ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Text(user.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          if (staff?.designation != null && staff!.designation != 'N/A')
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Text(staff.designation!, style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
-            ),
-          
-          const SizedBox(height: 12),
-          // ACTIVE BADGE
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(color: Colors.green.shade600, borderRadius: BorderRadius.circular(6)),
-            child: const Text('ACTIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
-          ),
-          
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _showChangePasswordDialog,
-            icon: const Icon(Icons.lock_reset, size: 18),
-            label: const Text('Change Password'),
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.white, backgroundColor: theme.primaryColor,
-              elevation: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
           ),
         ],
       ),
@@ -204,9 +278,32 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
   Widget _buildInfoCards(BuildContext context) {
     final staff = _profileData!.staff;
     if (staff == null) {
-      return const Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Text("Detailed staff records are only available for internal roles.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue.shade100, width: 1.5),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.admin_panel_settings, size: 48, color: Colors.blue.shade300),
+              const SizedBox(height: 16),
+              Text(
+                "Internal Role",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Detailed staff records are only available for staff and faculty members.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.blue.shade600),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -215,69 +312,107 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
       child: Column(
         children: [
           const SizedBox(height: 16),
-          _buildGlassmorphicCard(
+          _buildMinimalCard(
+            title: 'Employment Details',
+            icon: Icons.assignment_ind_outlined,
+            cardColor: Colors.blue,
+            children: [
+              _buildDataRowIfValid('Employee Code', staff.employeeCode),
+              _buildDataRowIfValid('Employment Type', staff.employmentType),
+              _buildDataRowIfValid('Status', staff.status),
+              _buildDataRowIfValid('Confirmation Date', staff.confirmationDate),
+              // Reporting Manager ID is an int, typically you'd fetch the name, but we'll show ID if available
+              if (staff.reportingManagerId != null) 
+                _buildDataRowIfValid('Reporting Manager ID', staff.reportingManagerId.toString()),
+            ],
+          ),
+          _buildMinimalCard(
             title: 'Professional Details',
+            icon: Icons.work_outline,
+            cardColor: Colors.indigo,
             children: [
-              _buildDataRow('Staff ID', staff.staffIdCard ?? 'N/A'),
-              _buildDataRow('Department', staff.department ?? 'N/A'),
-              _buildDataRow('Designation', staff.designation ?? 'N/A'),
-              _buildDataRow('Basic Salary', staff.basicSalary != null ? '₹${staff.basicSalary}' : 'N/A'),
-              _buildDataRow(
+              _buildDataRowIfValid('Staff ID', staff.staffIdCard),
+              _buildDataRowIfValid('Department', staff.department),
+              _buildDataRowIfValid('Designation', staff.designation),
+              _buildDataRowIfValid('Basic Salary', staff.basicSalary != null ? '₹${staff.basicSalary}' : null),
+              _buildDataRowIfValid(
                 'Date of Joining', 
-                staff.dateOfJoining != null 
-                  ? DateFormat('dd MMM, yyyy').format(DateTime.parse(staff.dateOfJoining!)) 
-                  : 'N/A'
+                staff.dateOfJoining != null ? DateFormat('dd MMM, yyyy').format(DateTime.parse(staff.dateOfJoining!)) : null
               ),
-              _buildDataRow('Work Experience', staff.workExperience ?? 'N/A'),
+              _buildDataRowIfValid('Work Experience', staff.workExperience),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildGlassmorphicCard(
+          _buildMinimalCard(
             title: 'Personal Details',
+            icon: Icons.person_outline,
+            cardColor: Colors.teal,
             children: [
-              _buildDataRow(
+              _buildDataRowIfValid(
                 'Date of Birth', 
-                staff.dateOfBirth != null 
-                  ? DateFormat('dd MMM, yyyy').format(DateTime.parse(staff.dateOfBirth!)) 
-                  : 'N/A'
+                staff.dateOfBirth != null ? DateFormat('dd MMM, yyyy').format(DateTime.parse(staff.dateOfBirth!)) : null
               ),
-              _buildDataRow('Gender', staff.gender ?? 'N/A'),
-              _buildDataRow('Marital Status', staff.maritalStatus ?? 'N/A'),
-              _buildDataRow('Qualification', staff.qualification ?? 'N/A'),
-              _buildDataRow('Father Name', staff.fatherName ?? 'N/A'),
-              _buildDataRow('Mother Name', staff.motherName ?? 'N/A'),
+              _buildDataRowIfValid('Gender', staff.gender),
+              _buildDataRowIfValid('Marital Status', staff.maritalStatus),
+              _buildDataRowIfValid('Qualification', staff.qualification),
+              _buildDataRowIfValid('Father Name', staff.fatherName),
+              _buildDataRowIfValid('Mother Name', staff.motherName),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildGlassmorphicCard(
+          _buildMinimalCard(
+            title: 'Emergency Contact',
+            icon: Icons.health_and_safety_outlined,
+            cardColor: Colors.red,
+            children: [
+              _buildDataRowIfValid('Contact Name', staff.emergencyContactName),
+              _buildDataRowIfValid('Contact Phone', staff.emergencyContactPhone ?? staff.emergencyContact),
+              _buildDataRowIfValid('Blood Group', staff.bloodGroup),
+            ],
+          ),
+          _buildMinimalCard(
+            title: 'Statutory IDs',
+            icon: Icons.account_balance_wallet_outlined,
+            cardColor: Colors.purple,
+            children: [
+              _buildDataRowIfValid('PAN Number', staff.panNumber),
+              _buildDataRowIfValid('Aadhaar Number', staff.aadhaarNumber),
+              _buildDataRowIfValid('PF Number', staff.pfNumber),
+              _buildDataRowIfValid('ESI Number', staff.esiNumber),
+              _buildDataRowIfValid('UAN Number', staff.uanNumber),
+            ],
+          ),
+          _buildMinimalCard(
             title: 'Contact Information',
+            icon: Icons.contact_phone_outlined,
+            cardColor: Colors.orange,
             children: [
-              _buildDataRow('Phone', staff.phone ?? 'N/A'),
-              _buildDataRow('Emergency Contact', staff.emergencyContact ?? 'N/A'),
-              _buildDataRow('Email', _profileData!.user.email),
-              _buildDataRow('Current Address', staff.currentAddress ?? 'N/A', isExpanded: true),
-              _buildDataRow('Permanent Address', staff.permanentAddress ?? 'N/A', isExpanded: true),
+              _buildDataRowIfValid('Phone', staff.phone),
+              _buildDataRowIfValid('Emergency Contact', staff.emergencyContact),
+              _buildDataRowIfValid('Email', _profileData!.user.email),
+              _buildDataRowIfValid('Current Address', staff.currentAddress, isExpanded: true),
+              _buildDataRowIfValid('Permanent Address', staff.permanentAddress, isExpanded: true),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildGlassmorphicCard(
+          _buildMinimalCard(
             title: 'Bank Account Details',
+            icon: Icons.account_balance_outlined,
+            cardColor: Colors.green,
             children: [
-              _buildDataRow('Account Title', staff.bankAccountTitle ?? 'N/A'),
-              _buildDataRow('Bank Name', staff.bankName ?? 'N/A'),
-              _buildDataRow('Branch Name', staff.bankBranchName ?? 'N/A'),
-              _buildDataRow('Account Number', staff.bankAccountNumber ?? 'N/A'),
-              _buildDataRow('IFSC Code', staff.bankIfscCode ?? 'N/A'),
+              _buildDataRowIfValid('Account Title', staff.bankAccountTitle),
+              _buildDataRowIfValid('Bank Name', staff.bankName),
+              _buildDataRowIfValid('Branch Name', staff.bankBranchName),
+              _buildDataRowIfValid('Account Number', staff.bankAccountNumber),
+              _buildDataRowIfValid('IFSC Code', staff.bankIfscCode),
             ],
           ),
-          const SizedBox(height: 16),
-          _buildGlassmorphicCard(
-            title: 'Social Media Links',
+          _buildMinimalCard(
+            title: 'Social Media',
+            icon: Icons.link,
+            cardColor: Colors.pink,
             children: [
-              _buildDataRow('Facebook', staff.facebookUrl ?? 'N/A', isExpanded: true),
-              _buildDataRow('Twitter', staff.twitterUrl ?? 'N/A', isExpanded: true),
-              _buildDataRow('LinkedIn', staff.linkedinUrl ?? 'N/A', isExpanded: true),
-              _buildDataRow('Instagram', staff.instagramUrl ?? 'N/A', isExpanded: true),
+              _buildDataRowIfValid('Facebook', staff.facebookUrl, isExpanded: true),
+              _buildDataRowIfValid('Twitter', staff.twitterUrl, isExpanded: true),
+              _buildDataRowIfValid('LinkedIn', staff.linkedinUrl, isExpanded: true),
+              _buildDataRowIfValid('Instagram', staff.instagramUrl, isExpanded: true),
             ],
           ),
         ],
@@ -285,25 +420,46 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
     );
   }
 
-  Widget _buildGlassmorphicCard({required String title, required List<Widget> children}) {
+  Widget _buildMinimalCard({required String title, required IconData icon, required List<Widget?> children, MaterialColor cardColor = Colors.blue}) {
+    final validChildren = children.where((child) => child != null).cast<Widget>().toList();
+    
+    if (validChildren.isEmpty) return const SizedBox.shrink();
+
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.shade100, width: 1.5),
+        color: cardColor.shade50.withOpacity(0.5), // Very subtle pastel background
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cardColor.shade100, width: 1.5),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal, color: Colors.black87)),
-          const SizedBox(height: 12),
-          const Divider(thickness: 1, color: Colors.black12),
-          const SizedBox(height: 12),
-          ...children,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: cardColor.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: cardColor.shade700),
+              ),
+              const SizedBox(width: 12),
+              Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cardColor.shade900)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...validChildren,
         ],
       ),
     );
+  }
+
+  Widget? _buildDataRowIfValid(String label, String? value, {bool isExpanded = false}) {
+    if (value == null || value.trim().isEmpty) return null;
+    return _buildDataRow(label, value, isExpanded: isExpanded);
   }
 
   Widget _buildDataRow(String label, String value, {bool isExpanded = false}) {

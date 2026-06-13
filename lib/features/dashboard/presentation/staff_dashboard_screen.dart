@@ -1,13 +1,14 @@
-// lib/features/dashboard/presentation/staff_dashboard_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
+import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'dashboard_providers.dart';
 import 'widgets/analytics_widgets.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 class StaffDashboardScreen extends ConsumerWidget {
   const StaffDashboardScreen({super.key});
@@ -19,15 +20,46 @@ class StaffDashboardScreen extends ConsumerWidget {
     return MainScaffold(
       showAppBar: false,
       useSafeArea: false,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/chatbot'),
-        backgroundColor: Theme.of(context).primaryColor,
-        child: const Icon(Icons.smart_toy, color: Colors.white),
+      floatingActionButton: ref.watch(chatbotConfigProvider).when(
+        data: (config) {
+          final isEnabled = config['enabled'] == true;
+          if (!isEnabled) return null;
+
+          final logoPath = config['logo'] as String?;
+          final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
+          Widget iconWidget = const Icon(Icons.smart_toy, color: Colors.white);
+
+          if (logoPath != null && logoPath.isNotEmpty) {
+            final fullLogoUrl = '$storageBaseUrl/storage/${logoPath.replaceFirst(RegExp(r'^/+'), '')}';
+            iconWidget = ClipOval(
+              child: Image.network(
+                fullLogoUrl,
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, stack) =>
+                    const Icon(Icons.smart_toy, color: Colors.white),
+              ),
+            );
+          }
+
+          return FloatingActionButton(
+            onPressed: () => context.push('/chatbot'),
+            backgroundColor: Theme.of(context).primaryColor,
+            child: iconWidget,
+          );
+        },
+        loading: () => FloatingActionButton(
+          onPressed: () => context.push('/chatbot'),
+          backgroundColor: Theme.of(context).primaryColor,
+          child: const Icon(Icons.smart_toy, color: Colors.white),
+        ),
+        error: (_, __) => null,
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(dashboardDataProvider),
         child: dashboardState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => SkeletonLoaders.dashboard(),
           error: (err, stack) {
             final errorStr = err.toString();
             if (errorStr.contains('403')) {
@@ -91,23 +123,7 @@ class StaffDashboardScreen extends ConsumerWidget {
                   // NEW: Quick Links 4x1 Menu
                   AnalyticsQuickLinksRow(data: data),
                   
-                  Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 3.5 Teacher Schedule
-                        if (data['role'] == 'teacher') ...[
-                          _buildTeacherSchedule(context, data),
-                          const SizedBox(height: 10),
-                        ],
 
-                        // 4. Analytics Trends (Only for Admins) - Removed per user request
-
-                        // 5. Removed Schedules & Events (Moved to Tabs)
-                      ],
-                    ),
-                  ),
                 ],
               ),
             );
@@ -119,46 +135,7 @@ class StaffDashboardScreen extends ConsumerWidget {
 
 
 
-  Widget _buildTeacherSchedule(BuildContext context, Map<String, dynamic> data) {
-    final List<TodayScheduleItem> schedule = (data['todays_schedule'] as List? ?? [])
-        .map((item) => TodayScheduleItem.fromJson(item))
-        .toList();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text("Today's Classes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            TextButton(onPressed: () => context.go('/my-timetable'), child: const Text('View All')),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (schedule.isEmpty)
-          const Card(child: ListTile(title: Center(child: Text("No classes scheduled."))))
-        else
-          ...schedule.take(3).map((period) => Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
-                child: Column(
-                  children: [
-                    Text(period.startTime.split(' ')[0], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    Text(period.startTime.split(' ')[1], style: const TextStyle(fontSize: 9)),
-                  ],
-                ),
-              ),
-              title: Text(period.subject, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('${period.className} - ${period.sectionName}'),
-            ),
-          )),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
+
 
   Widget _buildUpcomingEvents(BuildContext context, Map<String, dynamic> data) {
     final List<UpcomingEventItem> events = (data['upcoming_events'] as List? ?? [])

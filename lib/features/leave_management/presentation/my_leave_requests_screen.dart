@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'leave_providers.dart';
 
 class MyLeaveRequestsScreen extends ConsumerWidget {
@@ -30,7 +31,7 @@ class MyLeaveRequestsScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(myLeaveRequestsProvider.future),
         child: leaveRequestsState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => SkeletonLoaders.listTile(),
           error: (err, stack) => Center(child: Text('Error: $err')),
           data: (requests) {
             if (requests.isEmpty) {

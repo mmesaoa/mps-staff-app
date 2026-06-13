@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'core/config/app_theme.dart';
 import 'core/routing/app_router.dart';
-import 'features/auth/presentation/auth_controller.dart';
 
 // This container is made global to be accessible by the AuthInterceptor.
 final providerContainer = ProviderContainer();
@@ -11,9 +12,9 @@ Future<void> main() async {
   // Required for async operations before runApp()
   WidgetsFlutterBinding.ensureInitialized();
   
-  // This crucial line initializes the AuthController and waits for the
-  // auto-login check to complete before the app starts.
-  await providerContainer.read(authControllerProvider.future);
+  // NOTE: We no longer await authControllerProvider here.
+  // The SplashScreen handles the auth initialization and shows a branded
+  // loading screen instead of a blank white screen.
   
   runApp(
     UncontrolledProviderScope(
@@ -35,6 +36,15 @@ class MyApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        FlutterQuillLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', 'US'),
+      ],
     );
   }
 }

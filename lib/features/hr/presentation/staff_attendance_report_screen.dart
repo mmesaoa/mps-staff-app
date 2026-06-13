@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
-import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/core/auth/app_permission.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
+import 'package:school_erp_staff_app/features/hr/data/hr_repository.dart';
 import 'package:intl/intl.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:school_erp_staff_app/features/dashboard/presentation/dashboard_providers.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 
 // --- State Models ---
 class ReportState {
@@ -25,6 +27,9 @@ class ReportState {
   // Staff Selection list
   final List<dynamic> staffList;
 
+  // Error Handling
+  final String? errorMessage;
+
   ReportState({
     this.isLoading = false,
     this.viewMode = 'monthly',
@@ -35,6 +40,7 @@ class ReportState {
     this.memberStats = const {},
     this.memberLogs = const [],
     this.staffList = const [],
+    this.errorMessage,
   });
 
   ReportState copyWith({
@@ -47,6 +53,8 @@ class ReportState {
     Map<String, dynamic>? memberStats,
     List<dynamic>? memberLogs,
     List<dynamic>? staffList,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return ReportState(
       isLoading: isLoading ?? this.isLoading,
@@ -58,13 +66,16 @@ class ReportState {
       memberStats: memberStats ?? this.memberStats,
       memberLogs: memberLogs ?? this.memberLogs,
       staffList: staffList ?? this.staffList,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
 
 // --- Controller ---
 class ReportController extends StateNotifier<ReportState> {
-  ReportController() : super(ReportState(selectedMonth: DateTime.now())) {
+  final HrRepository _repository;
+
+  ReportController(this._repository) : super(ReportState(selectedMonth: DateTime.now())) {
     _initData();
   }
 
@@ -75,9 +86,7 @@ class ReportController extends StateNotifier<ReportState> {
 
   Future<void> fetchStaffList() async {
     try {
-      final dio = ApiClient().dio;
-      final response = await dio.get('/staff/hr/staff-list');
-      final data = response.data['data'] as List<dynamic>? ?? [];
+      final data = await _repository.getStaffList();
       
       // Select first staff by default if member view is accessed
       String? defaultStaffId;
@@ -85,45 +94,40 @@ class ReportController extends StateNotifier<ReportState> {
         defaultStaffId = data[0]['id'].toString();
       }
       
-      state = state.copyWith(staffList: data, selectedStaffId: defaultStaffId);
+      state = state.copyWith(staffList: data, selectedStaffId: defaultStaffId, clearError: true);
     } catch (e) {
       debugPrint('Error fetching staff list: $e');
+      state = state.copyWith(errorMessage: e.toString());
     }
   }
 
   Future<void> fetchReportData() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final dio = ApiClient().dio;
       final monthStr = DateFormat('yyyy-MM').format(state.selectedMonth);
       
-      final queryParams = {
-        'view': state.viewMode,
-        'month': monthStr,
-      };
-      
-      if (state.viewMode == 'member' && state.selectedStaffId != null) {
-        queryParams['staff_id'] = state.selectedStaffId!;
-      }
-
-      final response = await dio.get('/staff/hr/staff-attendance/report', queryParameters: queryParams);
+      final responseData = await _repository.getStaffAttendanceReport(
+        viewMode: state.viewMode,
+        month: monthStr,
+        staffId: state.selectedStaffId,
+      );
       
       if (state.viewMode == 'monthly') {
         state = state.copyWith(
-          monthlyData: response.data['data'] ?? [],
-          daysInMonth: response.data['days_in_month'] ?? 31,
+          monthlyData: responseData['data'] ?? [],
+          daysInMonth: responseData['days_in_month'] ?? 31,
           isLoading: false,
         );
       } else {
         state = state.copyWith(
-          memberStats: response.data['stats'] ?? {},
-          memberLogs: response.data['logs'] ?? [],
+          memberStats: responseData['stats'] ?? {},
+          memberLogs: responseData['logs'] ?? [],
           isLoading: false,
         );
       }
     } catch (e) {
       debugPrint('Error fetching report data: $e');
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
@@ -144,7 +148,10 @@ class ReportController extends StateNotifier<ReportState> {
   }
 }
 
-final reportProvider = StateNotifierProvider<ReportController, ReportState>((ref) => ReportController());
+final reportProvider = StateNotifierProvider<ReportController, ReportState>((ref) {
+  final repository = ref.watch(hrRepositoryProvider);
+  return ReportController(repository);
+});
 
 // --- UI Screens ---
 
@@ -156,9 +163,8 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
     final state = ref.watch(reportProvider);
     final controller = ref.read(reportProvider.notifier);
     
-    final dashboardState = ref.watch(dashboardDataProvider);
-    final role = dashboardState.maybeWhen(data: (d) => d['role'] ?? '', orElse: () => '');
-    final isAdmin = role == 'school_admin';
+    final perms = ref.watch(permissionProvider);
+    final isAdmin = perms.can(AppPermission.hrStaffAttendanceReport);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!isAdmin && state.viewMode != 'member') {
@@ -262,9 +268,28 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
 
           // Content Area
           Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : (state.viewMode == 'monthly' ? _buildMonthlyGrid(state) : _buildMemberDetail(state, isAdmin)),
+            child: state.errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(state.errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => controller.fetchReportData(),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : state.isLoading
+                    ? SkeletonLoaders.dashboard()
+                    : (state.viewMode == 'monthly' ? _buildMonthlyGrid(state) : _buildMemberDetail(state, isAdmin)),
           ),
         ],
       ),
@@ -406,7 +431,31 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           
           if (logs.isEmpty)
-            const Card(child: Padding(padding: EdgeInsets.all(16), child: Text("No punch logs for this month.")))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200, width: 2, strokeAlign: BorderSide.strokeAlignOutside),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.history_toggle_off, size: 48, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    "No Punch Logs",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "There are no attendance records for this month.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            )
           else
             ListView.builder(
               shrinkWrap: true,
@@ -521,15 +570,17 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
-          border: Border.all(color: color.withOpacity(0.2)),
-          borderRadius: BorderRadius.circular(12),
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
         ),
         child: Column(
           children: [
-            Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+            Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+            Text(label, style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600)),
           ],
         ),
       ),

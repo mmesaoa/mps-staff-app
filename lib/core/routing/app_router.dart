@@ -1,20 +1,44 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:school_erp_staff_app/core/auth/app_permission.dart';
+import 'package:school_erp_staff_app/core/auth/app_role.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
 import 'package:school_erp_staff_app/shared/widgets/scaffold_with_navbar.dart';
 
 // Import all your screen files...
 import '../../features/auth/presentation/login_screen.dart';
-import '../../features/dashboard/presentation/staff_dashboard_screen.dart';
+import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/profile/presentation/staff_profile_screen.dart';
 import '../../features/student_management/presentation/student_profile_screen.dart';
 import '../../features/student_management/presentation/student_search_screen.dart';
+import '../../features/academics/presentation/academics_dashboard_screen.dart';
+import '../../features/system/presentation/audit_trail_screen.dart';
+import '../../features/exams/presentation/offline_exams_dashboard_screen.dart';
+import '../../features/transport/presentation/transport_dashboard_screen.dart';
+import '../../features/front_office/presentation/front_office_dashboard_screen.dart';
+import '../../features/inventory/presentation/inventory_dashboard_screen.dart';
+import '../../features/assets/presentation/asset_dashboard_screen.dart';
+import '../../features/library/presentation/library_dashboard_screen.dart';
+import '../../features/hostel/presentation/hostel_dashboard_screen.dart';
+import '../../features/cbc/presentation/cbc_dashboard_screen.dart';
+import '../../features/ptm/presentation/ptm_dashboard_screen.dart';
+import '../../features/ptm/presentation/ptm_reports_screen.dart';
+import '../../features/ptm/presentation/ptm_record_list_screen.dart';
+import '../../features/ptm/presentation/ptm_record_roster_screen.dart';
+import '../../features/lesson_plan/presentation/lesson_plan_dashboard_screen.dart';
+import '../../features/dashboard/presentation/staff_dashboard_screen.dart';
 import '../../features/attendance/presentation/select_section_screen.dart';
 import '../../features/attendance/presentation/take_attendance_screen.dart';
 import '../../features/attendance/presentation/self_attendance_screen.dart';
+import '../../features/attendance/presentation/student_attendance_report_screen.dart';
 import '../../features/homework_management/presentation/homework_list_screen.dart';
 import '../../features/homework_management/presentation/homework_details_screen.dart';
 import '../../features/homework_management/presentation/create_homework_screen.dart';
+import '../../features/classwork/presentation/classwork_list_screen.dart';
+import '../../features/classwork/presentation/classwork_form_screen.dart';
+import '../../features/classwork/presentation/classwork_details_screen.dart';
 import '../../features/leave_management/presentation/my_leave_requests_screen.dart';
 import '../../features/leave_management/presentation/apply_for_leave_screen.dart';
 import '../../features/notice_board/presentation/notice_list_screen.dart';
@@ -29,9 +53,12 @@ import '../../features/hr/presentation/staff_list_screen.dart';
 import '../../features/hr/presentation/staff_detail_screen.dart';
 import '../../features/hr/presentation/mark_staff_attendance_screen.dart';
 import '../../features/hr/presentation/staff_attendance_report_screen.dart';
-import '../../features/fees/presentation/fees_due_report_screen.dart';
+import '../../features/fees/presentation/fees_dashboard_screen.dart';
+import '../../features/fees/presentation/finance_reports_screen.dart';
 import '../../features/chatbot/presentation/chatbot_screen.dart';
 import '../../features/profile/presentation/staff_profile_screen.dart';
+import '../../features/communicate/presentation/communicate_screen.dart';
+import '../../shared/widgets/secure_pdf_viewer_screen.dart';
 
 // Global Key for root navigator
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -39,20 +66,38 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(de
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
   final user = authState.value;
-  final isAdmin = user?.role == 'school_admin';
+  final isLoading = authState.isLoading;
+  final perms = ref.watch(permissionProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/dashboard',
+    initialLocation: '/splash',
     redirect: (context, state) {
-      final isLoggedIn = user != null;
+      final isSplash = state.matchedLocation == '/splash';
       final isLoggingIn = state.matchedLocation == '/login';
 
+      // While auth is still initializing, stay on the splash screen
+      if (isLoading) {
+        return isSplash ? null : '/splash';
+      }
+
+      final isLoggedIn = user != null;
+
+      // Auth resolved: leave splash
+      if (isSplash) {
+        return isLoggedIn ? '/dashboard' : '/login';
+      }
+
+      // Standard auth guard for all other routes
       if (!isLoggedIn && !isLoggingIn) return '/login';
       if (isLoggedIn && isLoggingIn) return '/dashboard';
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -60,6 +105,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/chatbot',
         builder: (context, state) => const ChatbotScreen(),
+      ),
+      GoRoute(
+        path: '/pdf-viewer',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SecurePdfViewerScreen(
+            title: extra?['title'] ?? 'PDF Viewer',
+            pdfUrl: extra?['pdfUrl'] ?? '',
+          );
+        },
       ),
 
       // StatefulShellRoute creates the Bottom Navigation UI
@@ -107,6 +163,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           final date = state.uri.queryParameters['date']!;
                           return TakeAttendanceScreen(sectionId: sectionId, date: date);
                         },
+                      ),
+                      GoRoute(
+                        path: 'reports',
+                        builder: (context, state) => const StudentAttendanceReportScreen(),
                       )
                     ],
                   ),
@@ -125,6 +185,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           return HomeworkDetailsScreen(homeworkId: homeworkId);
                         },
                       )
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'classwork',
+                    builder: (context, state) => const ClassworkListScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'details',
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) {
+                          final data = state.extra as Map<String, dynamic>;
+                          return ClassworkDetailsScreen(classwork: data);
+                        },
+                      ),
+                      GoRoute(
+                        path: 'create',
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) => const ClassworkFormScreen(),
+                      ),
+                      GoRoute(
+                        path: 'edit',
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) {
+                          final data = state.extra as Map<String, dynamic>;
+                          return ClassworkFormScreen(initialData: data);
+                        },
+                      ),
                     ],
                   ),
                   GoRoute(
@@ -165,11 +252,84 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   ),
                   GoRoute(
                     path: 'fees-reports',
-                    builder: (context, state) => const FeesDueReportScreen(),
+                    builder: (context, state) => const FeesDashboardScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'finance-reports',
+                        builder: (context, state) => const FinanceReportsScreen(),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'mark-staff-attendance',
                     builder: (context, state) => const MarkStaffAttendanceScreen(),
+                  ),
+                  GoRoute(
+                    path: 'communication-log',
+                    builder: (context, state) => const CommunicateScreen(),
+                  ),
+                  GoRoute(
+                    path: 'academics',
+                    builder: (context, state) => const AcademicsDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'audit-trail',
+                    builder: (context, state) => const AuditTrailScreen(),
+                  ),
+                  GoRoute(
+                    path: 'offline-exams',
+                    builder: (context, state) => const OfflineExamsDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'transport',
+                    builder: (context, state) => const TransportDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'front-office',
+                    builder: (context, state) => const FrontOfficeDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'inventory',
+                    builder: (context, state) => const InventoryDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'assets',
+                    builder: (context, state) => const AssetDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'library',
+                    builder: (context, state) => const LibraryDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'hostel',
+                    builder: (context, state) => const HostelDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'cbc',
+                    builder: (context, state) => const CbcDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'ptm',
+                    builder: (context, state) => const PtmDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'ptm/reports',
+                    builder: (context, state) => const PtmReportsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'ptm/record',
+                    builder: (context, state) => const PtmRecordListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'ptm/record/:meetingId',
+                    builder: (context, state) {
+                      final meetingIdStr = state.pathParameters['meetingId']!;
+                      return PtmRecordRosterScreen(meetingId: int.parse(meetingIdStr));
+                    },
+                  ),
+                  GoRoute(
+                    path: 'lesson-plans',
+                    builder: (context, state) => const LessonPlanDashboardScreen(),
                   ),
                 ],
               ),
@@ -177,19 +337,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
 
           // ==============================
-          // BRANCH 2: Dynamic Role Based (Admin=Reports, Teacher=Timetable)
+          // BRANCH 2: Role-based secondary tab
           // ==============================
+          // FIXED: Always register both routes unconditionally.
+          // The navbar dynamically picks the label/icon, and the screen
+          // itself handles role-based content. This avoids the GoRouter
+          // crash when conditional branches change at runtime.
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/staff-reports',
                 builder: (context, state) => const StaffAttendanceReportScreen(),
               ),
-              if (!isAdmin)
-                GoRoute(
-                  path: '/my-timetable',
-                  builder: (context, state) => const TimetableScreen(),
-                ),
+              GoRoute(
+                path: '/my-timetable',
+                builder: (context, state) => const TimetableScreen(),
+              ),
             ],
           ),
 

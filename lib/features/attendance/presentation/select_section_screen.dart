@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'attendance_providers.dart';
 
 class SelectSectionScreen extends ConsumerStatefulWidget {
@@ -22,9 +23,17 @@ class _SelectSectionScreenState extends ConsumerState<SelectSectionScreen> {
   Widget build(BuildContext context) {
     final classesState = ref.watch(classesProvider);
     return MainScaffold(
+      title: 'Student Attendance',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.assessment),
+          tooltip: 'Attendance Reports',
+          onPressed: () => context.go('/dashboard/attendance/reports'),
+        ),
+      ],
       body: SafeArea(
         child: classesState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => SkeletonLoaders.dashboard(),
           error: (err, stack) => Center(child: Text('Error: $err')),
           data: (classes) {
             if (classes.isEmpty) {
@@ -106,6 +115,17 @@ class _SelectSectionScreenState extends ConsumerState<SelectSectionScreen> {
                           }
                         : null,
                     child: const Text('Proceed'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.assessment),
+                    label: const Text('View Attendance Reports'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    onPressed: () {
+                      context.go('/dashboard/attendance/reports');
+                    },
                   ),
                 ],
               ),

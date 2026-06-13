@@ -43,17 +43,17 @@ abstract final class AppColors {
   static const Color tertiaryLight = Color(0xFFF5ECD0);
 
   // ── Surfaces ───────────────────────────────────────────────────────────────
-  /// Off-white background for the entire app
-  static const Color background = Color(0xFFF8FAFC);
+  /// Warm off-white background for the entire app (softer than pure white)
+  static const Color background = Color(0xFFF5F6FA);
 
-  /// Pure white for cards and elevated surfaces
-  static const Color surface = Color(0xFFFFFFFF);
+  /// Soft off-white for cards and elevated surfaces (avoids harsh pure white)
+  static const Color surface = Color(0xFFFAFBFD);
 
-  /// Slightly tinted surface for secondary cards
-  static const Color surfaceVariant = Color(0xFFF1F5F9);
+  /// Slightly deeper tinted surface for secondary cards / alternate rows
+  static const Color surfaceVariant = Color(0xFFEEF0F4);
 
   /// Card border / divider color
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color border = Color(0xFFDFE3EB);
 
   // ── Text ───────────────────────────────────────────────────────────────────
   /// Primary text on light backgrounds

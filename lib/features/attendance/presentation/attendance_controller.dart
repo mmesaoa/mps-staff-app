@@ -3,6 +3,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:intl/intl.dart';
 import '../data/attendance_repository.dart';
+import '../../../core/api/api_exception.dart';
 import 'attendance_providers.dart';
 import 'attendance_state.dart';
 
@@ -75,7 +76,9 @@ class AttendanceController extends _$AttendanceController {
       return {'student_id': e.key, 'status': e.value ?? 'Absent', 'remarks': ''};
     }).toList();
 
-    if (attendanceData.isEmpty) return; // Nothing new to submit
+    if (attendanceData.isEmpty) {
+      throw const ApiException(message: 'No new attendance records to submit. Already marked records cannot be edited.');
+    }
 
     final repository = ref.read(attendanceRepositoryProvider);
     await repository.submitAttendance(

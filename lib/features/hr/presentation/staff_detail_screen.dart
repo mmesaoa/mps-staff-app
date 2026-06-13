@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../data/staff_detail_repository.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 final staffDetailProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
-  final dio = ApiClient().dio;
-  final response = await dio.get('/staff/hr/staff-list/$id');
-  return response.data as Map<String, dynamic>;
+  final repository = StaffDetailRepository();
+  return repository.fetchStaffDetail(id);
 });
 
 class StaffDetailScreen extends ConsumerWidget {
@@ -19,19 +21,37 @@ class StaffDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final staffAsync = ref.watch(staffDetailProvider(staffId));
+    final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
 
     return MainScaffold(
       title: 'Staff Profile',
       body: staffAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        loading: () => SkeletonLoaders.detailPage(),
+        error: (err, stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(err.toString(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.refresh(staffDetailProvider(staffId)),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (staff) => SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Profile Header (Premium Card)
-              _buildProfileHeader(context, staff),
+              _buildProfileHeader(context, staff, storageBaseUrl),
               const SizedBox(height: 25),
 
               // 2. Monthly Vitals
@@ -44,10 +64,11 @@ class StaffDetailScreen extends ConsumerWidget {
               const Text('Employment Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 15),
               _buildInfoSection([
-                _InfoItem(label: 'Designation', value: staff['designation']),
-                _InfoItem(label: 'Department', value: staff['department']),
-                _InfoItem(label: 'Joining Date', value: staff['joining_date'] ?? 'N/A'),
-                _InfoItem(label: 'Qualification', value: staff['qualification'] ?? 'N/A'),
+                if (staff['designation'] != null && staff['designation'].toString().isNotEmpty) _InfoItem(label: 'Designation', value: staff['designation']),
+                if (staff['department'] != null && staff['department'].toString().isNotEmpty) _InfoItem(label: 'Department', value: staff['department']),
+                if (staff['joining_date'] != null && staff['joining_date'].toString().isNotEmpty && staff['joining_date'] != 'N/A') _InfoItem(label: 'Joining Date', value: staff['joining_date']),
+                if (staff['qualification'] != null && staff['qualification'].toString().isNotEmpty && staff['qualification'] != 'N/A') _InfoItem(label: 'Qualification', value: staff['qualification']),
+                if (staff['experience'] != null && staff['experience'].toString().isNotEmpty && staff['experience'] != 'N/A') _InfoItem(label: 'Experience', value: staff['experience']),
               ]),
               const SizedBox(height: 30),
 
@@ -63,31 +84,46 @@ class StaffDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, Map<String, dynamic> staff) {
+  Widget _buildProfileHeader(BuildContext context, Map<String, dynamic> staff, String storageBaseUrl) {
+    final photoPath = staff['photo_url'];
+    String? fullPhotoUrl;
+    if (photoPath != null && photoPath.toString().isNotEmpty) {
+      fullPhotoUrl = photoPath.toString().startsWith('http') ? photoPath.toString() : '$storageBaseUrl$photoPath';
+    }
+    
+    final staffIdStr = (staff['staff_id'] == null || staff['staff_id'].toString().isEmpty) 
+        ? 'EMP-${staff['id']}' 
+        : staff['staff_id'];
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.8)],
+          colors: [Theme.of(context).primaryColor, Colors.indigo.shade800],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Theme.of(context).primaryColor.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+          BoxShadow(color: Theme.of(context).primaryColor.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.white,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 3),
+                ),
                 child: CircleAvatar(
                   radius: 37,
-                  backgroundImage: staff['photo_url'] != null ? NetworkImage(staff['photo_url']) : null,
-                  child: staff['photo_url'] == null ? const Icon(Icons.person, size: 40) : null,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundImage: fullPhotoUrl != null ? NetworkImage(fullPhotoUrl) : null,
+                  child: fullPhotoUrl == null 
+                      ? Text((staff['name'] ?? 'S')[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 32)) 
+                      : null,
                 ),
               ),
               const SizedBox(width: 20),
@@ -96,22 +132,23 @@ class StaffDetailScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      staff['name'],
+                      staff['name'] ?? 'Unknown',
                       style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      staff['staff_id'],
+                      staffIdStr,
                       style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
                     ),
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                      child: Text(
-                        staff['designation'],
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    if (staff['designation'] != null && staff['designation'].toString().isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                        child: Text(
+                          staff['designation'],
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

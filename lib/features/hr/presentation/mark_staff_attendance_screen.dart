@@ -1,13 +1,18 @@
 // lib/features/hr/presentation/mark_staff_attendance_screen.dart
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/shared/widgets/api_error_widget.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import 'package:intl/intl.dart';
 
 class AttendanceItem {
   final String staffId;
+  final String employeeCode;
   final String name;
   final String designation;
   final String? photoUrl;
@@ -17,6 +22,7 @@ class AttendanceItem {
 
   AttendanceItem({
     required this.staffId,
+    required this.employeeCode,
     required this.name,
     required this.designation,
     this.photoUrl,
@@ -28,11 +34,12 @@ class AttendanceItem {
   factory AttendanceItem.fromJson(Map<String, dynamic> json) {
     return AttendanceItem(
       staffId: json['id'].toString(),
-      name: json['name'],
-      designation: json['designation'],
+      employeeCode: json['employee_code'] ?? json['staff_id_card'] ?? 'EMP-${json['id']}',
+      name: json['name'] ?? 'Unknown',
+      designation: json['designation'] ?? 'Staff',
       photoUrl: json['photo_url'],
-      status: json['status'],
-      remarks: json['remarks'],
+      status: json['status'] ?? 'Not Marked',
+      remarks: json['remarks'] ?? '',
       hasPunch: json['has_punch'] ?? false,
     );
   }
@@ -45,6 +52,7 @@ class StaffAttendanceState {
   final bool isLoading;
   final bool isSaving;
   final String searchQuery;
+  final String? errorMessage;
 
   StaffAttendanceState({
     this.allStaff = const [],
@@ -53,6 +61,7 @@ class StaffAttendanceState {
     this.isLoading = false,
     this.isSaving = false,
     this.searchQuery = '',
+    this.errorMessage,
   });
 
   StaffAttendanceState copyWith({
@@ -62,6 +71,7 @@ class StaffAttendanceState {
     bool? isLoading,
     bool? isSaving,
     String? searchQuery,
+    String? errorMessage,
   }) {
     return StaffAttendanceState(
       allStaff: allStaff ?? this.allStaff,
@@ -70,6 +80,7 @@ class StaffAttendanceState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       searchQuery: searchQuery ?? this.searchQuery,
+      errorMessage: errorMessage, // We don't want to carry over error messages unless specified
     );
   }
 }
@@ -80,18 +91,14 @@ class StaffAttendanceController extends StateNotifier<StaffAttendanceState> {
   }
 
   Future<void> fetchStaff() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final dio = ApiClient().dio;
       final dateStr = DateFormat('yyyy-MM-dd').format(state.selectedDate);
       
-      debugPrint('Fetching Staff Attendance for date: $dateStr');
       final response = await dio.get('/staff/hr/staff-attendance', queryParameters: {
         'date': dateStr,
       });
-
-      debugPrint('Response Status: ${response.statusCode}');
-      debugPrint('Response Data: ${response.data}');
 
       final List<dynamic> rawData = response.data['data'] ?? [];
       final staff = rawData.map((e) => AttendanceItem.fromJson(e)).toList();
@@ -102,8 +109,8 @@ class StaffAttendanceController extends StateNotifier<StaffAttendanceState> {
         isLoading: false,
       );
     } catch (e) {
-      debugPrint('Error fetching staff: $e');
-      state = state.copyWith(isLoading: false);
+      final message = e is DioException ? ApiException.fromDioException(e).message : e.toString();
+      state = state.copyWith(isLoading: false, errorMessage: message);
     }
   }
 
@@ -140,25 +147,36 @@ class StaffAttendanceController extends StateNotifier<StaffAttendanceState> {
     state = state.copyWith(isSaving: true);
     try {
       final dio = ApiClient().dio;
+      
+      final attendances = state.allStaff
+          .where((s) => s.status != 'Not Marked' && !s.hasPunch)
+          .map((s) => {
+                'staff_id': s.staffId,
+                'status': s.status,
+                'remarks': s.remarks,
+              })
+          .toList();
+
+      if (attendances.isEmpty) {
+        throw const ApiException(message: 'No new attendance records to submit.');
+      }
+
       final payload = {
         'date': DateFormat('yyyy-MM-dd').format(state.selectedDate),
-        'attendances': state.allStaff
-            .where((s) => s.status != 'Not Marked' && !s.hasPunch)
-            .map((s) => {
-                  'staff_id': s.staffId,
-                  'status': s.status,
-                  'remarks': s.remarks,
-                })
-            .toList(),
+        'attendances': attendances,
       };
 
       await dio.post('/staff/hr/staff-attendance', data: payload);
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Attendance saved successfully'), backgroundColor: Colors.green),
       );
+      fetchStaff(); // Refresh to remove submitted records
     } catch (e) {
+      final message = e is ApiException ? e.message : (e is DioException ? ApiException.fromDioException(e).message : 'Failed to save attendance');
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save attendance'), backgroundColor: Colors.red),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     } finally {
       state = state.copyWith(isSaving: false);
@@ -223,51 +241,75 @@ class MarkStaffAttendanceScreen extends ConsumerWidget {
             ),
           ),
 
-          // 2. Staff List
+          // 2. Main Content
           Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : state.filteredStaff.isEmpty
-                    ? const Center(child: Text('No staff found'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: state.filteredStaff.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final staff = state.filteredStaff[index];
-                          return _StaffAttendanceCard(staff: staff);
-                        },
-                      ),
+            child: _buildBody(state, controller),
           ),
-
-          // 3. Save Button
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
+          
+          // 3. Save Button (Only show if no errors and staff list is not empty)
+          if (state.errorMessage == null && state.allStaff.isNotEmpty)
+            SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      offset: const Offset(0, -4),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
                 child: ElevatedButton(
-                  onPressed: state.isSaving ? null : () => controller.saveAttendance(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
+                    minimumSize: const Size.fromHeight(50),
+                    backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    )
                   ),
+                  onPressed: state.isSaving ? null : () => controller.saveAttendance(context),
                   child: state.isSaving
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Save Attendance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ? const SizedBox(
+                          width: 24, height: 24, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                        )
+                      : const Text('Save Attendance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
-          ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildBody(StaffAttendanceState state, StaffAttendanceController controller) {
+    if (state.isLoading && state.allStaff.isEmpty) {
+      return SkeletonLoaders.listTile();
+    }
+    
+    if (state.errorMessage != null) {
+      return ApiErrorWidget(
+        error: ApiException.server(state.errorMessage!),
+        onRetry: () => controller.fetchStaff(),
+      );
+    }
+    
+    if (state.filteredStaff.isEmpty) {
+      return const Center(child: Text('No staff found'));
+    }
+    
+    return ListView.separated(
+      padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+      itemCount: state.filteredStaff.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final staff = state.filteredStaff[index];
+        return _StaffAttendanceCard(staff: staff);
+      },
     );
   }
 
@@ -291,6 +333,17 @@ class _StaffAttendanceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Re-use logic from StudentAttendanceTile to color Segments based on selection
+    Color getStatusColor(String status) {
+      switch (status.toLowerCase()) {
+        case 'present': return Colors.green.shade600;
+        case 'absent': return Colors.red.shade600;
+        case 'late': return Colors.orange.shade600;
+        case 'half day': return Colors.blue.shade600;
+        default: return Colors.grey.shade600;
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -299,13 +352,15 @@ class _StaffAttendanceCard extends ConsumerWidget {
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.blue.shade50,
-                child: const Icon(Icons.person, color: Colors.blue, size: 20),
+                backgroundImage: staff.photoUrl != null ? NetworkImage(staff.photoUrl!) : null,
+                child: staff.photoUrl == null ? const Icon(Icons.person, color: Colors.blue, size: 20) : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -314,7 +369,7 @@ class _StaffAttendanceCard extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Text(staff.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('${staff.name} (ID: ${staff.employeeCode})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         if (staff.hasPunch) ...[
                           const SizedBox(width: 8),
                           Container(
@@ -341,86 +396,53 @@ class _StaffAttendanceCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _StatusButton(
-                label: 'Present',
-                color: Colors.green,
-                isSelected: staff.status == 'Present',
-                isDisabled: staff.hasPunch,
-                onTap: () => staff.hasPunch ? null : ref.read(staffAttendanceProvider.notifier).onStatusChanged(staff.staffId, 'Present'),
+          SegmentedButton<String>(
+            emptySelectionAllowed: true,
+            segments: [
+              ButtonSegment<String>(
+                value: 'Present',
+                label: const Text('Present', style: TextStyle(fontSize: 12)),
               ),
-              _StatusButton(
-                label: 'Absent',
-                color: Colors.red,
-                isSelected: staff.status == 'Absent',
-                isDisabled: staff.hasPunch,
-                onTap: () => staff.hasPunch ? null : ref.read(staffAttendanceProvider.notifier).onStatusChanged(staff.staffId, 'Absent'),
+              ButtonSegment<String>(
+                value: 'Absent',
+                label: const Text('Absent', style: TextStyle(fontSize: 12)),
               ),
-              _StatusButton(
-                label: 'Late',
-                color: Colors.orange,
-                isSelected: staff.status == 'Late',
-                isDisabled: staff.hasPunch,
-                onTap: () => staff.hasPunch ? null : ref.read(staffAttendanceProvider.notifier).onStatusChanged(staff.staffId, 'Late'),
+              ButtonSegment<String>(
+                value: 'Late',
+                label: const Text('Late', style: TextStyle(fontSize: 12)),
               ),
-              _StatusButton(
-                label: 'Half Day',
-                color: Colors.blue,
-                isSelected: staff.status == 'Half Day',
-                isDisabled: staff.hasPunch,
-                onTap: () => staff.hasPunch ? null : ref.read(staffAttendanceProvider.notifier).onStatusChanged(staff.staffId, 'Half Day'),
+              ButtonSegment<String>(
+                value: 'Half Day',
+                label: const Text('Half Day', style: TextStyle(fontSize: 12)),
               ),
             ],
+            selected: staff.status == 'Not Marked' ? <String>{} : {staff.status},
+            onSelectionChanged: staff.hasPunch ? null : (Set<String> newSelection) {
+              final newStatus = newSelection.isEmpty ? 'Not Marked' : newSelection.first;
+              ref.read(staffAttendanceProvider.notifier).onStatusChanged(staff.staffId, newStatus);
+            },
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                if (states.contains(WidgetState.selected)) {
+                  return getStatusColor(staff.status).withValues(alpha: 0.15);
+                }
+                return null;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                if (states.contains(WidgetState.selected)) {
+                  return getStatusColor(staff.status);
+                }
+                return null;
+              }),
+              side: WidgetStateProperty.resolveWith<BorderSide?>((Set<WidgetState> states) {
+                if (states.contains(WidgetState.selected)) {
+                  return BorderSide(color: getStatusColor(staff.status).withValues(alpha: 0.5));
+                }
+                return null;
+              }),
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatusButton extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool isSelected;
-  final bool isDisabled;
-  final VoidCallback onTap;
-
-  const _StatusButton({
-    required this.label,
-    required this.color,
-    required this.isSelected,
-    this.isDisabled = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: isDisabled ? null : onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected 
-              ? (isDisabled ? color.withOpacity(0.5) : color) 
-              : (isDisabled ? Colors.grey.shade100 : Colors.transparent),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected 
-              ? (isDisabled ? color.withOpacity(0.5) : color) 
-              : (isDisabled ? Colors.grey.shade200 : Colors.grey.shade300)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected 
-                ? Colors.white 
-                : (isDisabled ? Colors.grey.shade400 : Colors.grey.shade700),
-          ),
-        ),
       ),
     );
   }

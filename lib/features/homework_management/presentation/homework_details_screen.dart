@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 // ✅ ADD THIS IMPORT STATEMENT to link to your core API services
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 import 'homework_providers.dart';
 
@@ -22,7 +23,7 @@ class HomeworkDetailsScreen extends ConsumerWidget {
         title: const Text('Homework Submissions'),
       ),
       body: detailsState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => SkeletonLoaders.detailPage(),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (data) {
           final homework = data['homework'];
@@ -106,7 +107,78 @@ class _SubmissionTile extends ConsumerWidget {
   });
 
   void _showEvaluationDialog(BuildContext context, WidgetRef ref) {
-    // ... (This method remains the same)
+    final marksController = TextEditingController(text: submission?['marks']?.toString() ?? '');
+    final remarksController = TextEditingController(text: submission?['remarks'] ?? '');
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Evaluate Submission'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: marksController,
+                    decoration: const InputDecoration(labelText: 'Marks (Optional)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: remarksController,
+                    decoration: const InputDecoration(labelText: 'Remarks (Optional)'),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setState(() => isSaving = true);
+                          try {
+                            await ref.read(homeworkEvaluationControllerProvider).submitEvaluation(
+                                  submissionId: submission!['id'],
+                                  marks: marksController.text.trim(),
+                                  remarks: remarksController.text.trim(),
+                                );
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Evaluation saved successfully')),
+                              );
+                              ref.refresh(homeworkDetailsProvider(homeworkId).future);
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          } finally {
+                            if (context.mounted) {
+                              setState(() => isSaving = false);
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _viewSubmission(BuildContext context, ApiClient apiClient) async {

@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import 'package:school_erp_staff_app/core/storage/secure_storage_service.dart';
 import 'package:school_erp_staff_app/features/auth/data/auth_repository.dart';
 import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
@@ -69,10 +70,10 @@ class AuthController extends _$AuthController {
           
           return result.user;
         } else {
-          throw 'Access Denied. Please use the Parent/Student App for this account.';
+          throw const ApiException.forbidden('Access Denied. Please use the Parent/Student App for this account.');
         }
       }
-      throw 'Invalid response from the server.';
+      throw const ApiException.server('Invalid response from the server.');
     });
   }
 
@@ -149,10 +150,10 @@ class AuthController extends _$AuthController {
           await Future.delayed(const Duration(milliseconds: 300));
           return result.user;
         } else {
-          throw 'Access Denied. Please use the Parent/Student App.';
+          throw const ApiException.forbidden('Access Denied. Please use the Parent/Student App.');
         }
       }
-      throw 'Invalid response from the server.';
+      throw const ApiException.server('Invalid response from the server.');
     });
   }
 
@@ -175,37 +176,48 @@ class AuthController extends _$AuthController {
   // EXISTING: Biometric login
   // =========================================================================
   Future<void> loginWithBiometrics() async {
-    final isBiometricEnabled = await _storageService.isBiometricEnabled();
-    if (!isBiometricEnabled) {
-      throw 'Biometric login is not enabled.';
-    }
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final isBiometricEnabled = await _storageService.isBiometricEnabled();
+      if (!isBiometricEnabled) {
+        throw const ApiException.forbidden('Biometric login is not enabled.');
+      }
 
-    final authenticated = await _biometricService.authenticate();
-    if (authenticated) {
-      state = const AsyncValue.loading();
-      state = await AsyncValue.guard(() async {
-        final creds = await _storageService.getStoredCredentials();
-        if (creds == null) throw 'No stored credentials found.';
+      final authenticated = await _biometricService.authenticate();
+      if (!authenticated) {
+        // User cancelled or biometric failed — just return current state quietly
+        return state.valueOrNull;
+      }
 
-        final result = await _authRepository.login(
-          username: creds['username']!,
-          password: creds['password']!,
+      final creds = await _storageService.getStoredCredentials();
+      if (creds == null) {
+        // Keystore was corrupted or credentials were wiped — disable biometric
+        // so the user isn't stuck in a loop, and ask them to log in normally.
+        await _storageService.clearBiometricData();
+        throw const ApiException.forbidden(
+          'Your saved login has expired or was reset by the device. '
+          'Please log in with your username and password to re-enable biometric login.',
+        );
+      }
+
+      final result = await _authRepository.login(
+        username: creds['username']!,
+        password: creds['password']!,
+      );
+
+      if (result.token != null && result.user != null) {
+        await _storageService.saveSession(
+          token: result.token!,
+          user: result.user!,
         );
 
-        if (result.token != null && result.user != null) {
-          await _storageService.saveSession(
-            token: result.token!,
-            user: result.user!,
-          );
+        // Give the platform a moment to fully commit secure storage
+        await Future.delayed(const Duration(milliseconds: 300));
 
-          // Give the platform a moment to fully commit secure storage
-          await Future.delayed(const Duration(milliseconds: 300));
-
-          return result.user;
-        }
-        throw 'Biometric login failed on server side.';
-      });
-    }
+        return result.user;
+      }
+      throw const ApiException.server('Biometric login failed. Please try logging in with your password.');
+    });
   }
 
   Future<void> setBiometricEnabled(bool enabled) async {

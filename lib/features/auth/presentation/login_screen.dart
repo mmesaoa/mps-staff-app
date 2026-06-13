@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/core/config/app_colors.dart';
 import 'auth_controller.dart';
 import 'auth_providers.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import '../data/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -34,9 +35,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _checkBiometricStatus() async {
-    final notifier = ref.read(authControllerProvider.notifier);
-    _isBiometricAvailable = await notifier.isBiometricAvailable();
-    if (mounted) setState(() {});
+    try {
+      final notifier = ref.read(authControllerProvider.notifier);
+      _isBiometricAvailable = await notifier.isBiometricAvailable();
+      if (mounted) setState(() {});
+    } catch (e) {
+      // Silently disable biometric button if check fails (e.g. no hardware)
+      _isBiometricAvailable = false;
+      if (mounted) setState(() {});
+    }
   }
 
   @override
@@ -67,12 +74,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // PASSWORD LOGIN
   // =========================================================================
   Future<void> _loginWithBiometrics() async {
+    // loginWithBiometrics() now sets state via AsyncValue.guard(),
+    // so errors are handled by the ref.listen callback below.
+    // This try-catch is a safety net for truly unexpected failures.
     try {
       await ref.read(authControllerProvider.notifier).loginWithBiometrics();
     } catch (e) {
       if (mounted) {
+        final message = e is ApiException
+            ? e.message
+            : 'Biometric login is temporarily unavailable. Please log in with your password.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -151,8 +167,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _startResendTimer(60);
     } catch (e) {
       if (mounted) {
+        final message = e is ApiException ? e.message : 'Could not resend OTP. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
     }
@@ -177,9 +194,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     ref.listen<AsyncValue>(authControllerProvider, (previous, next) {
       if (next.hasError && !next.isLoading) {
+        final error = next.error;
+        final String message;
+        if (error is ApiException) {
+          message = error.message;
+        } else {
+          // NEVER show raw PlatformException / stack traces to users.
+          // Log for debugging, show a generic friendly message.
+          debugPrint('❌ [LoginScreen] Unhandled auth error: $error');
+          message = 'Something went wrong. Please try again.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.error.toString()),
+            content: Text(message),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

@@ -7,6 +7,7 @@ class User {
   final String email;
   final String userType;
   final String? role;
+  final List<String> permissions;
   final String? profilePhotoUrl;
   final String? schoolName;
 
@@ -16,6 +17,7 @@ class User {
     required this.email,
     required this.userType,
     this.role,
+    this.permissions = const [],
     this.profilePhotoUrl,
     this.schoolName,
   });
@@ -27,6 +29,7 @@ class User {
       email: json['email'],
       userType: json['user_type'],
       role: json['role'],
+      permissions: List<String>.from(json['permissions'] ?? []),
       profilePhotoUrl: json['profile_photo_url'],
       schoolName: json['school_name'],
     );
@@ -39,6 +42,7 @@ class User {
       'email': email,
       'user_type': userType,
       'role': role,
+      'permissions': permissions,
       'profile_photo_url': profilePhotoUrl,
       'school_name': schoolName,
     };

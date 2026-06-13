@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/auth/app_permission.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
-import 'package:school_erp_staff_app/utils/string_helpers.dart';
 
 class MainScaffold extends ConsumerWidget {
   final Widget body;
@@ -25,12 +26,9 @@ class MainScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ✅ 1. Get the AsyncValue object which wraps your user state.
     final asyncUser = ref.watch(authControllerProvider);
-    // ✅ 2. Safely get the actual user data from the '.value' property.
     final user = asyncUser.value;
     
-    // The rest of the logic now works correctly.
     final appBarTitle = title ?? user?.schoolName ?? 'Dashboard';
 
     return Scaffold(
@@ -54,11 +52,7 @@ class AppDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-
-    final user = ref.watch(authControllerProvider).value;
-    final userRole = user?.role?.toLowerCase() ?? '';
-    final isAdmin = userRole == 'school_admin';
-    final isTeacher = userRole == 'teacher';
+    final perms = ref.watch(permissionProvider);
 
     return Drawer(
       child: SafeArea(
@@ -85,33 +79,35 @@ class AppDrawer extends ConsumerWidget {
               },
             ),
 
-            // --- ATTENDANCE & LEAVE (FOR ALL STAFF) ---
-            if (!isAdmin) ...[
+            // --- SELF-SERVICE (FOR ALL NON-ADMIN STAFF) ---
+            if (!perms.isAdmin) ...[
               const Divider(),
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
                 child: Text('My Work', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
-              ListTile(
-                leading: const Icon(Icons.time_to_leave_outlined),
-                title: const Text('My Leave'),
-                onTap: () {
-                  context.pop();
-                  context.go('/dashboard/my-leave');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.analytics_outlined),
-                title: const Text('My Attendance Logs'),
-                onTap: () {
-                  context.pop();
-                  context.go('/staff-reports');
-                },
-              ),
+              if (perms.can(AppPermission.selfLeaveView))
+                ListTile(
+                  leading: const Icon(Icons.time_to_leave_outlined),
+                  title: const Text('My Leave'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/dashboard/my-leave');
+                  },
+                ),
+              if (perms.can(AppPermission.selfAttendanceView))
+                ListTile(
+                  leading: const Icon(Icons.analytics_outlined),
+                  title: const Text('My Attendance Logs'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/staff-reports');
+                  },
+                ),
             ],
 
-            // --- ACADEMICS (TEACHER ONLY) ---
-            if (isTeacher) ...[
+            // --- ACADEMICS (TEACHER / ADMIN WITH PERMISSION) ---
+            if (perms.can(AppPermission.timetableView) && perms.isTeacher) ...[
               const Divider(),
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
@@ -125,14 +121,15 @@ class AppDrawer extends ConsumerWidget {
                   context.go('/my-timetable');
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.edit_document),
-                title: const Text('Homework'),
-                onTap: () {
-                  context.pop();
-                  context.go('/dashboard/homework');
-                },
-              ),
+              if (perms.can(AppPermission.homeworkManage))
+                ListTile(
+                  leading: const Icon(Icons.edit_document),
+                  title: const Text('Homework'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/dashboard/homework');
+                  },
+                ),
             ],
 
             // --- SCHOOL OPERATIONS ---
@@ -141,7 +138,7 @@ class AppDrawer extends ConsumerWidget {
               padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
               child: Text('School Operations', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
             ),
-            if (isTeacher || isAdmin) ...[
+            if (perms.can(AppPermission.studentView)) ...[
               ListTile(
                 leading: const Icon(Icons.search),
                 title: const Text('Student Search'),
@@ -150,6 +147,8 @@ class AppDrawer extends ConsumerWidget {
                   context.go('/dashboard/student-search');
                 },
               ),
+            ],
+            if (perms.can(AppPermission.attendanceTake))
               ListTile(
                 leading: const Icon(Icons.calendar_month_outlined),
                 title: const Text('Take Attendance'),
@@ -158,6 +157,7 @@ class AppDrawer extends ConsumerWidget {
                   context.go('/dashboard/attendance');
                 },
               ),
+            if (perms.can(AppPermission.examMarksEntry))
               ListTile(
                 leading: const Icon(Icons.grading_outlined),
                 title: const Text('Enter Exam Marks'),
@@ -166,55 +166,73 @@ class AppDrawer extends ConsumerWidget {
                   context.go('/dashboard/exam-marks');
                 },
               ),
-            ],
-            ListTile(
-              leading: const Icon(Icons.campaign_outlined),
-              title: const Text('Notice Board'),
-              onTap: () {
-                context.pop();
-                context.go('/notices');
-              },
-            ),
+            if (perms.can(AppPermission.noticeView))
+              ListTile(
+                leading: const Icon(Icons.campaign_outlined),
+                title: const Text('Notice Board'),
+                onTap: () {
+                  context.pop();
+                  context.go('/notices');
+                },
+              ),
+            if (perms.can(AppPermission.transportManage))
+              ListTile(
+                leading: const Icon(Icons.directions_bus_outlined),
+                title: const Text('Transport'),
+                onTap: () {
+                  context.pop();
+                  context.go('/dashboard/transport');
+                },
+              ),
 
-            // --- ADMIN SPECIFIC LINKS ---
-            if (isAdmin) ...[
+            // --- ADMINISTRATION (PERMISSION-BASED, NOT ROLE-BASED) ---
+            if (perms.canAny({
+              AppPermission.hrStaffView,
+              AppPermission.hrStaffAttendanceReport,
+              AppPermission.hrLeaveApprove,
+              AppPermission.feesViewReport,
+            })) ...[
               const Divider(),
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
                 child: Text('Administration', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
-              ListTile(
-                leading: const Icon(Icons.badge_outlined),
-                title: const Text('Staff List'),
-                onTap: () {
-                  context.pop();
-                  context.go('/dashboard/staff-list');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.analytics_outlined),
-                title: const Text('Staff Attend. Logs'),
-                onTap: () {
-                  context.pop();
-                  context.go('/staff-reports');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.approval_outlined),
-                title: const Text('Staff Leave Approval'),
-                onTap: () {
-                  context.pop();
-                  context.go('/dashboard/staff-leave-approval');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.account_balance_wallet_outlined),
-                title: const Text('Fees Due'),
-                onTap: () {
-                  context.pop();
-                  context.go('/dashboard/fees-reports');
-                },
-              ),
+              if (perms.can(AppPermission.hrStaffView))
+                ListTile(
+                  leading: const Icon(Icons.badge_outlined),
+                  title: const Text('Staff List'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/dashboard/staff-list');
+                  },
+                ),
+              if (perms.can(AppPermission.hrStaffAttendanceReport))
+                ListTile(
+                  leading: const Icon(Icons.analytics_outlined),
+                  title: const Text('Staff Attend. Logs'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/staff-reports');
+                  },
+                ),
+              if (perms.can(AppPermission.hrLeaveApprove))
+                ListTile(
+                  leading: const Icon(Icons.approval_outlined),
+                  title: const Text('Staff Leave Approval'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/dashboard/staff-leave-approval');
+                  },
+                ),
+              if (perms.can(AppPermission.feesViewReport))
+                ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: const Text('Fees Due'),
+                  onTap: () {
+                    context.pop();
+                    context.go('/dashboard/fees-reports');
+                  },
+                ),
             ],
 
             const Divider(),
@@ -299,9 +317,9 @@ class DrawerProfileHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ✅ Apply the same fix here to correctly access the user data.
     final asyncUser = ref.watch(authControllerProvider);
     final user = asyncUser.value;
+    final perms = ref.watch(permissionProvider);
 
     final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
     
@@ -318,7 +336,7 @@ class DrawerProfileHeader extends ConsumerWidget {
         ),
       ),
       accountEmail: Text(
-        user?.role?.capitalize() ?? 'Staff Account',
+        perms.displayRoleName,
         style: const TextStyle(
           shadows: [Shadow(blurRadius: 2.0, color: Colors.black54)]
         ),
