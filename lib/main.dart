@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
 import 'core/config/app_theme.dart';
 import 'core/routing/app_router.dart';
 
@@ -11,6 +12,10 @@ final providerContainer = ProviderContainer();
 Future<void> main() async {
   // Required for async operations before runApp()
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load the IANA timezone database so attendance punch times can be rendered
+  // in the school's timezone regardless of the device's clock/timezone.
+  tz.initializeTimeZones();
   
   // NOTE: We no longer await authControllerProvider here.
   // The SplashScreen handles the auth initialization and shows a branded

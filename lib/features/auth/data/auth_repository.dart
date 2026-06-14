@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
 import 'package:school_erp_staff_app/core/api/api_exception.dart';
+import 'package:school_erp_staff_app/core/storage/secure_storage_service.dart';
 import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
 
 /// Result from login or OTP verify.
@@ -91,12 +92,14 @@ class AuthRepository {
     String? otp,
   }) async {
     try {
+      final deviceUuid = await SecureStorageService().getDeviceUuid();
       final response = await _apiClient.dio.post(
         '/login',
         data: {
           'username': username,
           'password': password,
           'device_name': 'mobile_app',
+          'device_uuid': deviceUuid,
           if (otp != null) 'otp': otp,
         },
       );

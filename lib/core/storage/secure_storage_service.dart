@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 
 class SecureStorageService {
   // Singleton pattern
@@ -41,6 +42,26 @@ class SecureStorageService {
   static const _biometricEnabledKey = 'biometric_enabled';
   static const _lastUsernameKey = 'last_username';
   static const _lastPasswordKey = 'last_password';
+  static const _deviceUuidKey = 'device_uuid';
+
+  /// Returns a stable per-install device id, generating and persisting one on
+  /// first use. Used by the backend for device binding (one account = one
+  /// device) and to stop a single phone punching attendance for many staff.
+  Future<String> getDeviceUuid() async {
+    try {
+      final existing = await _safeRead(_deviceUuidKey);
+      if (existing != null && existing.isNotEmpty) return existing;
+
+      final newId = const Uuid().v4();
+      await _storage.write(key: _deviceUuidKey, value: newId);
+      return newId;
+    } catch (e) {
+      debugPrint("❌ [Storage] FAILED to get device uuid: $e");
+      // Fall back to an ephemeral id so attendance still works; the backend
+      // treats a missing/changing id as unbound rather than blocking the user.
+      return const Uuid().v4();
+    }
+  }
 
   Future<void> saveSession({
     required String token,

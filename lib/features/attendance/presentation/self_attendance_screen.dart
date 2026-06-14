@@ -5,7 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
+import 'package:safe_device/safe_device.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../../../core/api/api_client.dart';
+import '../../../core/storage/secure_storage_service.dart';
 import '../data/attendance_repository.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'attendance_providers.dart';
@@ -85,14 +88,16 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
       final punchInStr = _attendanceData!['punch_in_time'];
       if (punchInStr == null) return;
 
-      final punchInLocal = DateTime.parse(punchInStr).toLocal();
+      // Compute elapsed time in UTC so it's correct even if the device clock is
+      // in a different timezone than the school / server.
+      final punchInUtc = DateTime.parse(punchInStr).toUtc();
       setState(() {
-        _elapsedTime = DateTime.now().difference(punchInLocal);
+        _elapsedTime = DateTime.now().toUtc().difference(punchInUtc);
       });
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) return;
         setState(() {
-          _elapsedTime = DateTime.now().difference(punchInLocal);
+          _elapsedTime = DateTime.now().toUtc().difference(punchInUtc);
         });
       });
     } else {
@@ -101,6 +106,51 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
           _elapsedTime = Duration.zero;
         });
       }
+    }
+  }
+
+  /// Formats a UTC ISO-8601 punch timestamp in the school's timezone (sent by
+  /// the backend), falling back to the device timezone if it's unavailable.
+  String _formatInSchoolTz(String? iso, {String pattern = 'hh:mm a'}) {
+    if (iso == null) return '--:--';
+    try {
+      final utc = DateTime.parse(iso).toUtc();
+      final tzName = _settingsData?['timezone'] as String?;
+      if (tzName != null && tzName.isNotEmpty) {
+        final location = tz.getLocation(tzName);
+        return DateFormat(pattern).format(tz.TZDateTime.from(utc, location));
+      }
+      return DateFormat(pattern).format(utc.toLocal());
+    } catch (_) {
+      return '--:--';
+    }
+  }
+
+  /// Returns false (and shows a message) if the device has Developer Options
+  /// enabled or is rooted — both let users fake GPS / tamper with the app.
+  Future<bool> _passesDeviceIntegrityCheck() async {
+    try {
+      final devModeOn = await SafeDevice.isDevelopmentModeEnable;
+      final isRooted = await SafeDevice.isJailBroken;
+
+      if (devModeOn || isRooted) {
+        if (mounted) {
+          final reason = isRooted
+              ? 'a rooted device'
+              : 'Developer Mode (Developer Options)';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Attendance is blocked on $reason. Please turn it off in your phone settings and try again.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ));
+        }
+        return false;
+      }
+      return true;
+    } catch (_) {
+      // If the integrity check itself can't run, don't hard-block the user;
+      // the server still rejects mocked GPS as a backstop.
+      return true;
     }
   }
 
@@ -142,12 +192,22 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
       _isPunching = true;
     });
 
+    // Block punching from a tampered device — developer mode enabled or rooted.
+    // These are on-device checks (no Play Services), so they also work on
+    // sideloaded installs without the Play Store.
+    if (!await _passesDeviceIntegrityCheck()) {
+      setState(() { _isPunching = false; });
+      return;
+    }
+
     double? lat;
     double? lng;
+    double? accuracy;
+    bool isMocked = false;
 
     // Only fetch GPS if school requires it
     final geolocationEnabled = _settingsData?['geolocation_enabled'] ?? false;
-    
+
     if (geolocationEnabled == 1 || geolocationEnabled == true || geolocationEnabled == '1') {
       final hasPermission = await _handleLocationPermission();
       if (!hasPermission) {
@@ -158,8 +218,24 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
       try {
         Position position = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.best);
+
+        // Block GPS spoofing via mock-location apps / developer "set location".
+        if (position.isMocked) {
+          setState(() { _isPunching = false; });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Mock/fake location detected. Please turn off developer location spoofing to punch.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ));
+          }
+          return;
+        }
+
         lat = position.latitude;
         lng = position.longitude;
+        accuracy = position.accuracy;
+        isMocked = position.isMocked;
       } catch (e) {
         setState(() { _isPunching = false; });
         if (mounted) {
@@ -171,10 +247,14 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
     }
 
     try {
+      final deviceUuid = await SecureStorageService().getDeviceUuid();
       final dio = ref.read(apiClientProvider).dio;
       final response = await dio.post('/staff/self-attendance/punch', data: {
         'latitude': lat,
         'longitude': lng,
+        'accuracy': accuracy,
+        'is_mocked': isMocked,
+        'device_uuid': deviceUuid,
       });
 
       if (response.statusCode == 200) {
@@ -343,9 +423,7 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
                             children: [
                               const Text('Punch In:', style: TextStyle(color: Colors.grey)),
                               Text(
-                                _attendanceData!['punch_in_time'] != null 
-                                  ? DateFormat('hh:mm a').format(DateTime.parse(_attendanceData!['punch_in_time']).toLocal())
-                                  : '--:--',
+                                _formatInSchoolTz(_attendanceData!['punch_in_time']),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               )
                             ],
@@ -358,9 +436,7 @@ class _SelfAttendanceScreenState extends ConsumerState<SelfAttendanceScreen> {
                             children: [
                               const Text('Punch Out:', style: TextStyle(color: Colors.grey)),
                               Text(
-                                _attendanceData!['punch_out_time'] != null 
-                                  ? DateFormat('hh:mm a').format(DateTime.parse(_attendanceData!['punch_out_time']).toLocal())
-                                  : '--:--',
+                                _formatInSchoolTz(_attendanceData!['punch_out_time']),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               )
                             ],
