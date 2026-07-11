@@ -25,6 +25,7 @@ dependencies:
   safe_device: ^1.1.9 # On-device developer-mode/root/mock checks (no Play Services needed)
   file_picker: ^10.3.3
   url_launcher: ^6.2.6
+  package_info_plus: ^8.3.0 # app version for the update-available check
   flutter_widget_from_html: ^0.15.1
   table_calendar: ^3.0.9
   local_auth: ^2.3.0

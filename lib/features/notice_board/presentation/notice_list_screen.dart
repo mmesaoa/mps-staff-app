@@ -6,7 +6,6 @@ import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/shared/widgets/api_error_widget.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'notice_providers.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
@@ -270,23 +269,17 @@ class NoticeCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Render a clean preview of HTML
-                  HtmlWidget(
-                    notice['content'] ?? '',
-                    textStyle: TextStyle(
+                  // A clean, scannable summary — strip the HTML and show a
+                  // short snippet; the full notice opens via "Read More".
+                  Text(
+                    _noticePreview(notice['content'] ?? ''),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       color: Colors.grey.shade700,
                       fontSize: 14,
+                      height: 1.4,
                     ),
-                    customStylesBuilder: (element) {
-                      if (element.localName == 'body') {
-                        return {
-                          'max-lines': '2',
-                          'text-overflow': 'ellipsis',
-                          'margin': '0',
-                        };
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -396,4 +389,22 @@ class NoticeSkeletonCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Turn a notice's HTML body into a clean one-line plain-text snippet for the
+/// list preview (the full formatted notice still opens on the detail screen).
+String _noticePreview(String html) {
+  if (html.isEmpty) return '';
+  final text = html
+      .replaceAll(RegExp(r'<(br|/p|/div|/li|/h[1-6])\s*/?>', caseSensitive: false), ' ')
+      .replaceAll(RegExp(r'<[^>]+>'), '') // strip remaining tags
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  return text;
 }

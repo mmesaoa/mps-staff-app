@@ -78,6 +78,33 @@ class AuthController extends _$AuthController {
   }
 
   // =========================================================================
+  // DEMO QUICK-ACCESS LOGIN
+  // =========================================================================
+  /// One-tap demo login. Mirrors [login] but takes no credentials and never
+  /// stores them for biometric reuse (demo sessions are throwaway).
+  Future<void> demoLogin(String role) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final result = await _authRepository.demoLogin(role: role);
+
+      if (result.token != null && result.user != null) {
+        final forbiddenTypes = ['student', 'parent'];
+        if (forbiddenTypes.contains(result.user!.userType)) {
+          throw const ApiException.forbidden(
+              'Access Denied. Please use the Parent/Student App for this account.');
+        }
+        await _storageService.saveSession(
+          token: result.token!,
+          user: result.user!,
+        );
+        await Future.delayed(const Duration(milliseconds: 300));
+        return result.user;
+      }
+      throw const ApiException.server('Invalid response from the server.');
+    });
+  }
+
+  // =========================================================================
   // NEW: Passwordless OTP login
   // =========================================================================
 

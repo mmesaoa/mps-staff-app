@@ -43,6 +43,7 @@ class SecureStorageService {
   static const _lastUsernameKey = 'last_username';
   static const _lastPasswordKey = 'last_password';
   static const _deviceUuidKey = 'device_uuid';
+  static const _brandingKey = 'branding_payload';
 
   /// Returns a stable per-install device id, generating and persisting one on
   /// first use. Used by the backend for device binding (one account = one
@@ -167,6 +168,19 @@ class SecureStorageService {
       return null;
     }
   }
+
+  /// Cache the raw `/branding` JSON payload for instant offline theming on the
+  /// next cold start. Non-sensitive; reuses secure storage to avoid a new dep.
+  Future<void> saveBrandingRaw(String raw) async {
+    try {
+      await _storage.write(key: _brandingKey, value: raw);
+    } catch (e) {
+      debugPrint("⚠️ [Storage] Failed to cache branding: $e");
+    }
+  }
+
+  /// Read the cached branding payload. Returns null if absent/unreadable.
+  Future<String?> readBrandingRaw() => _safeRead(_brandingKey);
 
   Future<void> deleteSession() async {
     try {

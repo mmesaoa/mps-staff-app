@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import '../data/transport_repository.dart';
 
 class TransportDashboardState {
@@ -43,7 +44,7 @@ class TransportDashboardController extends StateNotifier<TransportDashboardState
       final data = await _repository.getDashboardData();
       state = state.copyWith(isLoading: false, data: data);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: ApiException.from(e).message);
     }
   }
 }

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_erp_staff_app/core/branding/brand_logo.dart';
 import 'package:school_erp_staff_app/core/config/app_colors.dart';
+import 'package:school_erp_staff_app/core/config/app_config.dart';
 import 'auth_controller.dart';
 import 'auth_providers.dart';
 import 'package:school_erp_staff_app/core/api/api_exception.dart';
@@ -21,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneController = TextEditingController();
   final _otpVerifyController = TextEditingController();
   bool _isBiometricAvailable = false;
+  bool _isDemoMode = false;
 
   // Resend cooldown timer
   Timer? _resendTimer;
@@ -31,7 +34,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkBiometricStatus();
+      _checkDemoMode();
     });
+  }
+
+  Future<void> _checkDemoMode() async {
+    try {
+      final isDemo =
+          await ref.read(authRepositoryProvider).checkDemoMode();
+      if (mounted) setState(() => _isDemoMode = isDemo);
+    } catch (_) {
+      // leave demo buttons hidden on any error
+    }
   }
 
   Future<void> _checkBiometricStatus() async {
@@ -226,10 +240,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Image.asset('assets/images/app_logo.png', height: 120),
+              const BrandLogo(height: 120),
               const SizedBox(height: 24),
               Text(
-                'Staff Portal Login',
+                AppConfig.loginSubtitle,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -370,40 +384,105 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ],
             ],
           ),
-        // "Login with OTP" button (only on credentials screen)
-        if (!isOtpScreen) ...[
+        // "Login with OTP" — only on the credentials screen AND only when the
+        // platform has OTP login enabled. Defaults to hidden until the check
+        // resolves, so a disabled setting never flashes the button.
+        if (!isOtpScreen &&
+            (ref.watch(otpAvailableProvider).asData?.value ?? false)) ...[
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 16),
-          Builder(builder: (context) {
-            // Assume available by default to avoid flicker, or check if explicitly false
-            final otpAvailable =
-                ref.watch(otpAvailableProvider).asData?.value ?? true;
-
-            return OutlinedButton.icon(
-              onPressed: () =>
-                  ref.read(authControllerProvider.notifier).switchToOtpLogin(),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
-                side: BorderSide(color: Theme.of(context).colorScheme.primary),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+          OutlinedButton.icon(
+            onPressed: () =>
+                ref.read(authControllerProvider.notifier).switchToOtpLogin(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+              side: BorderSide(color: Theme.of(context).colorScheme.primary),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              icon: const Icon(Icons.sms_outlined, size: 20),
-              label: const Text(
-                'LOGIN WITH SMS/OTP',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
+            ),
+            icon: const Icon(Icons.sms_outlined, size: 20),
+            label: const Text(
+              'LOGIN WITH SMS/OTP',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
               ),
-            );
-          }),
+            ),
+          ),
         ],
+        if (!isOtpScreen && _isDemoMode) _buildDemoQuickAccess(isLoading),
       ],
+    );
+  }
+
+  // =========================================================================
+  // DEMO QUICK ACCESS (only shown when the server is in demo mode)
+  // =========================================================================
+  Widget _buildDemoQuickAccess(bool isLoading) {
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Expanded(child: Divider()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text('QUICK ACCESS',
+                  style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5)),
+            ),
+            const Expanded(child: Divider()),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _demoButton(
+                  label: 'Teacher',
+                  icon: Icons.co_present_outlined,
+                  role: 'teacher',
+                  isLoading: isLoading),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _demoButton(
+                  label: 'School Admin',
+                  icon: Icons.admin_panel_settings_outlined,
+                  role: 'schooladmin',
+                  isLoading: isLoading),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _demoButton({
+    required String label,
+    required IconData icon,
+    required String role,
+    required bool isLoading,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: isLoading
+          ? null
+          : () => ref.read(authControllerProvider.notifier).demoLogin(role),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Theme.of(context).colorScheme.primary,
+        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
     );
   }
 

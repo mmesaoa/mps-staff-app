@@ -97,7 +97,7 @@ class ReportController extends StateNotifier<ReportState> {
       state = state.copyWith(staffList: data, selectedStaffId: defaultStaffId, clearError: true);
     } catch (e) {
       debugPrint('Error fetching staff list: $e');
-      state = state.copyWith(errorMessage: e.toString());
+      state = state.copyWith(errorMessage: ApiException.from(e).message);
     }
   }
 
@@ -127,7 +127,7 @@ class ReportController extends StateNotifier<ReportState> {
       }
     } catch (e) {
       debugPrint('Error fetching report data: $e');
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: ApiException.from(e).message);
     }
   }
 

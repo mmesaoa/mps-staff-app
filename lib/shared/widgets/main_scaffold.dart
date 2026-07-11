@@ -166,6 +166,24 @@ class AppDrawer extends ConsumerWidget {
                   context.go('/dashboard/exam-marks');
                 },
               ),
+            if (perms.can(AppPermission.assessmentDashboardView))
+              ListTile(
+                leading: const Icon(Icons.fact_check_outlined),
+                title: const Text('Assessments'),
+                onTap: () {
+                  context.pop();
+                  context.go('/dashboard/assessment');
+                },
+              ),
+            if (perms.canAny({AppPermission.feesDueView, AppPermission.feesDueViewOwn}))
+              ListTile(
+                leading: const Icon(Icons.payments_outlined),
+                title: const Text('Class Due Fees'),
+                onTap: () {
+                  context.pop();
+                  context.go('/dashboard/fees-due');
+                },
+              ),
             if (perms.can(AppPermission.noticeView))
               ListTile(
                 leading: const Icon(Icons.campaign_outlined),
@@ -227,7 +245,7 @@ class AppDrawer extends ConsumerWidget {
               if (perms.can(AppPermission.feesViewReport))
                 ListTile(
                   leading: const Icon(Icons.account_balance_wallet_outlined),
-                  title: const Text('Fees Due'),
+                  title: const Text('Fees'),
                   onTap: () {
                     context.pop();
                     context.go('/dashboard/fees-reports');

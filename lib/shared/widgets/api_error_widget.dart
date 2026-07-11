@@ -137,29 +137,7 @@ class ApiErrorWidget extends StatelessWidget {
   }
 
   /// Resolve any error type into an [ApiException] for consistent rendering.
-  ApiException _resolveError(Object error) {
-    if (error is ApiException) return error;
-
-    final errorStr = error.toString();
-
-    // Fallback: parse common patterns from string errors (legacy support)
-    if (errorStr.contains('403')) {
-      return const ApiException.forbidden(
-        'This feature is currently restricted for your role. Please contact your administrator for access.',
-      );
-    }
-    if (errorStr.contains('401')) {
-      return const ApiException.unauthorized();
-    }
-    if (errorStr.contains('404')) {
-      return const ApiException.notFound();
-    }
-    if (errorStr.contains('SocketException') ||
-        errorStr.contains('Connection') ||
-        errorStr.contains('timeout')) {
-      return const ApiException.network();
-    }
-
-    return ApiException(message: errorStr);
-  }
+  /// Delegates to the single normaliser so a raw [DioException], socket dump,
+  /// or stray string is always shown as a friendly, typed error.
+  ApiException _resolveError(Object error) => ApiException.from(error);
 }

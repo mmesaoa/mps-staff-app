@@ -109,7 +109,7 @@ class StaffAttendanceController extends StateNotifier<StaffAttendanceState> {
         isLoading: false,
       );
     } catch (e) {
-      final message = e is DioException ? ApiException.fromDioException(e).message : e.toString();
+      final message = ApiException.from(e).message;
       state = state.copyWith(isLoading: false, errorMessage: message);
     }
   }

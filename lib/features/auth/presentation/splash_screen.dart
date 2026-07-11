@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:school_erp_staff_app/core/branding/brand_logo.dart';
 import 'package:school_erp_staff_app/core/config/app_colors.dart';
+import 'package:school_erp_staff_app/core/config/app_config.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -92,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -101,7 +103,7 @@ class _SplashScreenState extends State<SplashScreen>
               AppColors.primary,
               AppColors.primaryLight,
             ],
-            stops: [0.0, 0.5, 1.0],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: Stack(
@@ -179,8 +181,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ],
                         ),
                         padding: const EdgeInsets.all(16),
-                        child: Image.asset(
-                          'assets/images/app_logo.png',
+                        child: const BrandLogo(
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -196,7 +197,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Column(
                           children: [
                             const Text(
-                              'Staff Portal',
+                              AppConfig.splashTitle,
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w800,
@@ -270,7 +271,7 @@ class _SplashScreenState extends State<SplashScreen>
 
                     // Footer
                     Text(
-                      'Powered by ProjectWorlds',
+                      AppConfig.poweredBy,
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.white.withAlpha(80),

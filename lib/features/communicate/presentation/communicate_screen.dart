@@ -150,7 +150,7 @@ class _CommunicateScreenState extends ConsumerState<CommunicateScreen> {
         right: 20,
         bottom: 12,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primaryDark, AppColors.primary],
           begin: Alignment.topLeft,
@@ -277,7 +277,7 @@ class _CommunicateScreenState extends ConsumerState<CommunicateScreen> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            borderSide: BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),
         style: const TextStyle(fontSize: 14),

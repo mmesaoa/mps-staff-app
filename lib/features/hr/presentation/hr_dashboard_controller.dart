@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import '../data/hr_dashboard_repository.dart';
 
 final hrDashboardRepositoryProvider = Provider((ref) => HrDashboardRepository());
@@ -40,7 +41,7 @@ class HrDashboardController extends StateNotifier<HrDashboardState> {
       final data = await _repository.fetchDashboardStats();
       state = state.copyWith(isLoading: false, data: data);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: ApiException.from(e).message);
     }
   }
 }

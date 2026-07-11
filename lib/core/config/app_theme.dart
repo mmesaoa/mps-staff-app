@@ -8,6 +8,7 @@
 // that uses Theme.of(context) will automatically pick up the changes.
 
 import 'package:flutter/material.dart';
+import '../branding/branding.dart';
 import 'app_colors.dart';
 import 'app_text_theme.dart';
 
@@ -18,8 +19,18 @@ import 'app_text_theme.dart';
 abstract final class AppTheme {
   AppTheme._();
 
-  static ThemeData get lightTheme {
-    const colorScheme = ColorScheme(
+  /// Build the app theme from a resolved [Branding]. Applies the brand to
+  /// [AppColors] first so direct `AppColors.x` reads across the app stay in sync.
+  static ThemeData build(Branding branding) {
+    AppColors.applyBranding(branding);
+    return _theme();
+  }
+
+  /// Convenience: the theme for the compile-time fallback brand.
+  static ThemeData get lightTheme => build(const Branding.fallback());
+
+  static ThemeData _theme() {
+    final colorScheme = ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.primary,
       onPrimary: AppColors.textOnPrimary,
@@ -53,7 +64,7 @@ abstract final class AppTheme {
       ),
 
       // ── AppBar ────────────────────────────────────────────────────────────
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textOnPrimary,
         elevation: 0,
@@ -140,7 +151,7 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -151,14 +162,14 @@ abstract final class AppTheme {
       ),
 
       // ── Bottom Navigation ─────────────────────────────────────────────────
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textHint,
         elevation: 8,
         type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 11),
+        selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
       ),
 
       // ── Drawer ────────────────────────────────────────────────────────────
@@ -186,11 +197,11 @@ abstract final class AppTheme {
       ),
 
       // ── Floating Action Button ────────────────────────────────────────────
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.accent,
         foregroundColor: AppColors.textOnPrimary,
         elevation: 4,
-        shape: CircleBorder(),
+        shape: const CircleBorder(),
       ),
 
       // ── Snackbar ──────────────────────────────────────────────────────────
@@ -198,7 +209,7 @@ abstract final class AppTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: AppColors.primaryDark,
-        contentTextStyle: const TextStyle(color: AppColors.textOnPrimary, fontSize: 14),
+        contentTextStyle: TextStyle(color: AppColors.textOnPrimary, fontSize: 14),
       ),
 
       // ── Dialog ────────────────────────────────────────────────────────────
@@ -214,13 +225,13 @@ abstract final class AppTheme {
       ),
 
       // ── Tab Bar ───────────────────────────────────────────────────────────
-      tabBarTheme: const TabBarThemeData(
+      tabBarTheme: TabBarThemeData(
         labelColor: AppColors.textOnPrimary,
-        unselectedLabelColor: Color(0xAAFFFFFF),
+        unselectedLabelColor: const Color(0xAAFFFFFF),
         indicatorColor: AppColors.tertiary,
         indicatorSize: TabBarIndicatorSize.label,
-        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 13),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 13),
       ),
 
       // ── Switch ────────────────────────────────────────────────────────────
@@ -236,7 +247,7 @@ abstract final class AppTheme {
       ),
 
       // ── Progress Indicator ────────────────────────────────────────────────
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.primary,
         linearTrackColor: AppColors.border,
       ),

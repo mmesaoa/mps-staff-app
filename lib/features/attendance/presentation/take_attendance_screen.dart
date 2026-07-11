@@ -136,7 +136,7 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
         child: attendanceAsyncState.when(
           loading: () => SkeletonLoaders.listTile(),
           error: (err, stack) {
-            final exception = err is ApiException ? err : ApiException.server(err.toString());
+            final exception = ApiException.from(err);
             return ApiErrorWidget(
               error: exception,
               onRetry: () => ref.refresh(attendanceControllerProvider(widget.sectionId, widget.date)),

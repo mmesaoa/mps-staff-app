@@ -46,7 +46,7 @@ class CommunicationLogRepository {
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     } catch (e) {
-      throw ApiException(message: e.toString(), statusCode: 500);
+      throw ApiException.from(e);
     }
   }
 }

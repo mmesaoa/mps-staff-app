@@ -8,36 +8,41 @@
 // automatically pick up the changes.
 
 import 'package:flutter/material.dart';
+import '../branding/branding.dart';
 
 /// All brand & semantic colors live here. Import this class anywhere you need
 /// a raw color that isn't covered by [Theme.of(context).colorScheme].
+///
+/// NOTE: the brand tokens below are intentionally NOT `const` — they are set by
+/// [applyBranding] at bootstrap and on any branding change. Do not use them in
+/// `const` expressions. See backend docs/dynamic-branding-plan.md §5.3.
 abstract final class AppColors {
   AppColors._();
 
-  // ── Brand Palette ──────────────────────────────────────────────────────────
+  // ── Brand Palette (RUNTIME-mutable — set by applyBranding) ──────────────────
   /// Dark navy — primary brand color for headers, AppBar, hero sections
-  static const Color primary = Color(0xFF1A365D);
+  static Color primary = const Color(0xFF1A365D);
 
   /// Slightly lighter navy for gradients and hover states
-  static const Color primaryLight = Color(0xFF2A4A7F);
+  static Color primaryLight = const Color(0xFF2A4A7F);
 
   /// Even darker navy for pressed states
-  static const Color primaryDark = Color(0xFF0F2341);
+  static Color primaryDark = const Color(0xFF0F2341);
 
   /// Staff-specific accent — the original orange brand color
-  static const Color accent = Color(0xFFF37021);
+  static Color accent = const Color(0xFFF37021);
 
-  /// Lighter accent variant for backgrounds
-  static const Color accentLight = Color(0xFFFF8F4C);
+  /// Lighter accent variant for backgrounds (derived from accent)
+  static Color accentLight = const Color(0xFFFF8F4C);
 
   /// Deep crimson — secondary accent for badges, alerts, important CTAs
-  static const Color secondary = Color(0xFF9B2C2C);
+  static Color secondary = const Color(0xFF9B2C2C);
 
-  /// Lighter crimson variant
+  /// Lighter crimson variant (not brand-configurable)
   static const Color secondaryLight = Color(0xFFBC4444);
 
   /// Heritage gold — highlights, premium accents, star ratings
-  static const Color tertiary = Color(0xFFD4AF37);
+  static Color tertiary = const Color(0xFFD4AF37);
 
   /// Muted gold for backgrounds and light accents
   static const Color tertiaryLight = Color(0xFFF5ECD0);
@@ -65,8 +70,8 @@ abstract final class AppColors {
   /// Hint / placeholder text
   static const Color textHint = Color(0xFF94A3B8);
 
-  /// Text on dark / primary backgrounds
-  static const Color textOnPrimary = Color(0xFFFFFFFF);
+  /// Text on dark / primary backgrounds (RUNTIME-mutable — luminance-safe via brand)
+  static Color textOnPrimary = const Color(0xFFFFFFFF);
 
   /// Text on secondary backgrounds
   static const Color textOnSecondary = Color(0xFFFFFFFF);
@@ -124,10 +129,25 @@ abstract final class AppColors {
   static const Color iconFgChatbot = Color(0xFF0D9488);
   static const Color iconFgComms = Color(0xFFEA580C);
 
-  // ── Carousel / Banner ──────────────────────────────────────────────────────
+  // ── Carousel / Banner (RUNTIME-mutable — follow the primary brand) ──────────
   /// Gradient start for hero banner sections
-  static const Color bannerGradientStart = Color(0xFF1A365D);
+  static Color bannerGradientStart = const Color(0xFF1A365D);
 
   /// Gradient end for hero banner sections
-  static const Color bannerGradientEnd = Color(0xFF2A4A7F);
+  static Color bannerGradientEnd = const Color(0xFF2A4A7F);
+
+  /// Apply a resolved [Branding] to the runtime-mutable brand tokens. Called at
+  /// bootstrap and on every branding change (via [AppTheme.build]).
+  static void applyBranding(Branding b) {
+    primary = b.primary;
+    primaryLight = b.primaryLight;
+    primaryDark = b.primaryDark;
+    accent = b.accent;
+    accentLight = Color.lerp(b.accent, Colors.white, 0.28) ?? b.accent;
+    secondary = b.secondary;
+    tertiary = b.tertiary;
+    textOnPrimary = b.onPrimary;
+    bannerGradientStart = b.primary;
+    bannerGradientEnd = b.primaryLight;
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/core/config/app_colors.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import '../data/chatbot_service.dart';
 import '../models/chat_message.dart';
 import 'package:intl/intl.dart';
@@ -163,7 +164,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       setState(() {
         _isLoading = false;
         _messages.add(ChatMessage(
-          content: "Error: ${e.toString()}",
+          content: ApiException.from(e).message,
           role: 'ai',
           timestamp: DateTime.now(),
         ));
@@ -259,7 +260,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             UserAccountsDrawerHeader(
               accountName: Text(_chatbotName),
               accountEmail: const Text("Your Conversations"),
-              currentAccountPicture: const CircleAvatar(
+              currentAccountPicture: CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Icon(Icons.smart_toy, color: AppColors.primary),
               ),

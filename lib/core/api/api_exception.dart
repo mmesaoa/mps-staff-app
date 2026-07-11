@@ -42,6 +42,52 @@ class ApiException implements Exception {
   bool get isServerError => statusCode != null && statusCode! >= 500;
   bool get isNetworkError => errorCode == 'NETWORK_ERROR';
 
+  // ── Universal normaliser ─────────────────────────────────
+
+  /// Normalise ANY caught object into a friendly [ApiException].
+  ///
+  /// Use this in catch blocks and UI error branches so a raw [DioException],
+  /// `SocketException`, or a stray `e.toString()` string never reaches the
+  /// user. Crucially it also re-cleans an [ApiException] whose `message` is a
+  /// raw transport dump (some older repos build `message: e.toString()`), which
+  /// is exactly what a weak/slow network used to surface.
+  factory ApiException.from(Object error) {
+    if (error is ApiException) {
+      return _looksLikeRawDump(error.message) ? _friendlyFromText(error.message) : error;
+    }
+    if (error is DioException) return ApiException.fromDioException(error);
+    return _friendlyFromText(error.toString());
+  }
+
+  static bool _looksLikeRawDump(String s) {
+    return s.contains('DioException') ||
+        s.contains('SocketException') ||
+        s.contains('HandshakeException') ||
+        s.contains('Connection closed') ||
+        s.contains('Connection reset') ||
+        s.contains('Software caused connection abort') ||
+        s.contains('errno =') ||
+        s.contains('#0 ');
+  }
+
+  /// Map a free-text error into a friendly typed message. Network-ish text
+  /// becomes a connection error; anything else becomes a neutral retry message
+  /// (never the raw string).
+  static ApiException _friendlyFromText(String s) {
+    final lower = s.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('connection') ||
+        lower.contains('timeout') ||
+        lower.contains('timed out') ||
+        lower.contains('network') ||
+        lower.contains('handshake') ||
+        lower.contains('unreachable') ||
+        lower.contains('failed host lookup')) {
+      return const ApiException.network();
+    }
+    return const ApiException.server('Something went wrong. Please try again.');
+  }
+
   // ── Factory from DioException ────────────────────────────
 
   /// Convert a [DioException] into a structured [ApiException].

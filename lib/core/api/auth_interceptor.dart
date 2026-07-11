@@ -15,8 +15,10 @@ class AuthInterceptor extends Interceptor {
       print('--> ${options.method.toUpperCase()} ${options.uri}');
     }
 
-    final isPublic = options.path == '/login' || 
-                     options.path.contains('/otp-login/');
+    final isPublic = options.path == '/login' ||
+                     options.path == '/branding' ||
+                     options.path.contains('/otp-login/') ||
+                     options.path.contains('/demo/');
 
     if (!isPublic) {
       final token = await _storageService.readToken();

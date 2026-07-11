@@ -9,6 +9,7 @@ import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'dashboard_providers.dart';
 import 'widgets/analytics_widgets.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
+import 'package:school_erp_staff_app/core/update/update_gate.dart';
 
 class StaffDashboardScreen extends ConsumerWidget {
   const StaffDashboardScreen({super.key});
@@ -56,7 +57,11 @@ class StaffDashboardScreen extends ConsumerWidget {
         ),
         error: (_, __) => null,
       ),
-      body: RefreshIndicator(
+      body: Stack(
+        children: [
+          // Invisible: once-per-run "update available" check (App Distribution).
+          const UpdateGate(appKey: 'staff'),
+          RefreshIndicator(
         onRefresh: () async => ref.invalidate(dashboardDataProvider),
         child: dashboardState.when(
           loading: () => SkeletonLoaders.dashboard(),
@@ -129,6 +134,8 @@ class StaffDashboardScreen extends ConsumerWidget {
             );
           },
         ),
+          ),
+        ],
       ),
     );
   }

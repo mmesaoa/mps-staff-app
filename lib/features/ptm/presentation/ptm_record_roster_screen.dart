@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
+import '../../../core/api/api_exception.dart';
 import '../../../shared/widgets/shimmer_loading.dart';
 import 'ptm_providers.dart';
 import '../data/ptm_repository.dart';
@@ -52,7 +53,7 @@ class _PtmRecordRosterScreenState extends ConsumerState<PtmRecordRosterScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
+        content: Text(ApiException.from(e).message),
         backgroundColor: Colors.red,
       ));
     } finally {

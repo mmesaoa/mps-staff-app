@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
@@ -28,6 +29,14 @@ import '../../features/ptm/presentation/ptm_reports_screen.dart';
 import '../../features/ptm/presentation/ptm_record_list_screen.dart';
 import '../../features/ptm/presentation/ptm_record_roster_screen.dart';
 import '../../features/lesson_plan/presentation/lesson_plan_dashboard_screen.dart';
+import '../../features/assessment/presentation/assessment_dashboard_screen.dart';
+import '../../features/assessment/presentation/assessment_list_screen.dart';
+import '../../features/assessment/presentation/assessment_detail_screen.dart';
+import '../../features/assessment/presentation/assessment_form_screen.dart';
+import '../../features/assessment/presentation/mark_entry_screen.dart';
+import '../../features/assessment/presentation/assessment_reports_screen.dart';
+import '../../features/assessment/domain/assessment_models.dart';
+import '../../features/fees_due/presentation/fees_due_screen.dart';
 import '../../features/dashboard/presentation/staff_dashboard_screen.dart';
 import '../../features/attendance/presentation/select_section_screen.dart';
 import '../../features/attendance/presentation/take_attendance_screen.dart';
@@ -92,6 +101,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (!isLoggedIn && !isLoggingIn) return '/login';
       if (isLoggedIn && isLoggingIn) return '/dashboard';
       return null;
+    },
+    // A routing miss is almost always a transient auth transition (e.g. a deep
+    // route being torn down on logout). Show a calm loader instead of the
+    // default "page not found", then re-resolve through the auth guard.
+    errorBuilder: (context, state) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/login');
+      });
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     },
     routes: [
       GoRoute(
@@ -245,6 +265,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'exam-marks',
                     builder: (context, state) => const MarksSelectionScreen(),
                   ),
+                  GoRoute(
+                    path: 'fees-due',
+                    builder: (context, state) => const FeesDueScreen(),
+                  ),
                   // Admin specific deep links
                   GoRoute(
                     path: 'staff-leave-approval',
@@ -330,6 +354,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'lesson-plans',
                     builder: (context, state) => const LessonPlanDashboardScreen(),
+                  ),
+                  // ── Continuous Assessment ──────────────────────────
+                  GoRoute(
+                    path: 'assessment',
+                    builder: (context, state) => const AssessmentDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'assessment/list',
+                    builder: (context, state) => const AssessmentListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'assessment/create',
+                    builder: (context, state) => const AssessmentFormScreen(),
+                  ),
+                  GoRoute(
+                    path: 'assessment/reports',
+                    builder: (context, state) => const AssessmentReportsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'assessment/occurrence/:occId',
+                    builder: (context, state) =>
+                        MarkEntryScreen(occurrenceId: int.parse(state.pathParameters['occId']!)),
+                  ),
+                  GoRoute(
+                    path: 'assessment/:id/edit',
+                    builder: (context, state) =>
+                        AssessmentFormScreen(existing: state.extra as AssessmentDetail?),
+                  ),
+                  GoRoute(
+                    path: 'assessment/:id',
+                    builder: (context, state) =>
+                        AssessmentDetailScreen(assessmentId: int.parse(state.pathParameters['id']!)),
                   ),
                 ],
               ),

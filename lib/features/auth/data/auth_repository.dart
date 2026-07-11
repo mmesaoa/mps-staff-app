@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
 import 'package:school_erp_staff_app/core/api/api_exception.dart';
@@ -63,6 +65,19 @@ class AuthRepository {
   final ApiClient _apiClient;
   AuthRepository(this._apiClient);
 
+  /// Cache the resolved per-school branding embedded in a login response so the
+  /// next cold start themes the app for the user's school. Fire-and-forget and
+  /// fully guarded — branding is cosmetic and must never affect login (plan N4).
+  void _cacheBranding(dynamic data) {
+    try {
+      if (data is Map && data['branding'] is Map) {
+        SecureStorageService().saveBrandingRaw(jsonEncode(data['branding']));
+      }
+    } catch (_) {
+      // ignore — login proceeds regardless
+    }
+  }
+
   /// Verifies the saved token and fetches the user's latest data on app startup.
   Future<User> getProfile() async {
     try {
@@ -72,6 +87,41 @@ class AuthRepository {
       throw ApiException.fromDioException(e);
     } catch (e) {
       throw const ApiException.network('Could not verify session. Please check your network connection.');
+    }
+  }
+
+  /// Returns true when the backend runs in demo mode. Defaults to false on any
+  /// error so real deployments never show the quick-access buttons.
+  Future<bool> checkDemoMode() async {
+    try {
+      final response = await _apiClient.dio.get('/demo/config');
+      return response.data['demo_mode'] as bool? ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// One-tap demo login: the server picks a seeded account for [role] and returns
+  /// the same payload as a normal login.
+  Future<LoginResult> demoLogin({required String role}) async {
+    try {
+      final response = await _apiClient.dio.post(
+        '/demo/login',
+        data: {
+          'role': role,
+          'device_name': 'mobile_app',
+        },
+      );
+      final data = response.data;
+      final token = data['token'] as String;
+      final user = User.fromJson(data['user']);
+      _cacheBranding(data);
+      return LoginResult(otpRequired: false, token: token, user: user);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw const ApiException.network('Could not connect to the server. Please try again later.');
     }
   }
 
@@ -111,6 +161,7 @@ class AuthRepository {
       } else {
         final token = data['token'] as String;
         final user = User.fromJson(data['user']);
+        _cacheBranding(data);
         return LoginResult(otpRequired: false, token: token, user: user);
       }
     } on DioException catch (e) {
@@ -183,6 +234,7 @@ class AuthRepository {
       final data = response.data as Map<String, dynamic>;
       final token = data['token'] as String;
       final user = User.fromJson(data['user']);
+      _cacheBranding(data);
 
       return LoginResult(otpRequired: false, token: token, user: user);
     } on DioException catch (e) {

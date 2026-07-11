@@ -20,6 +20,8 @@ enum AppPermission {
 
   // ── Finance ────────────────────────────────────────────────
   feesViewReport('fees.view_report'),
+  feesDueView('fees.due.view'),        // admin/accountant — whole school
+  feesDueViewOwn('fees.due.view.own'), // teacher — own allotted classes
 
   // ── Communication ──────────────────────────────────────────
   noticeView('notice.view'),
@@ -61,6 +63,13 @@ enum AppPermission {
 
   // ── Lesson Planner ─────────────────────────────────────────
   lessonPlanManage('lesson_plan.dashboard.view'),
+
+  // ── Continuous Assessment ──────────────────────────────────
+  assessmentDashboardView('assessment.dashboard.view'),
+  assessmentManage('assessment.manage'),
+  assessmentMarksEnter('assessment.marks.enter'),
+  assessmentMarksPublish('assessment.marks.publish'),
+  assessmentReportView('assessment.report.view'),
 
   // ── Knowledge Base ────────────────────────────────────────
   kbManage('knowledge_base.manage'),

@@ -99,7 +99,7 @@ class AuditTrailController extends StateNotifier<AuditTrailState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e is ApiException ? e.message : e.toString(),
+        errorMessage: ApiException.from(e).message,
       );
     }
   }
@@ -129,7 +129,7 @@ class AuditTrailController extends StateNotifier<AuditTrailState> {
       state = state.copyWith(
         isFetchingMore: false,
         currentPage: state.currentPage - 1,
-        errorMessage: e is ApiException ? e.message : e.toString(),
+        errorMessage: ApiException.from(e).message,
       );
     }
   }

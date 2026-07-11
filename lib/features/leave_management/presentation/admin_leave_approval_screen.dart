@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:intl/intl.dart';
+import 'package:school_erp_staff_app/core/api/api_exception.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'leave_providers.dart';
 
@@ -122,7 +123,7 @@ class _AdminLeaveApprovalScreenState extends ConsumerState<AdminLeaveApprovalScr
                     children: [
                       const Icon(Icons.error_outline, size: 48, color: Colors.red),
                       const SizedBox(height: 16),
-                      Text(err.toString(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                      Text(ApiException.from(err).message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => ref.refresh(allLeaveRequestsProvider),

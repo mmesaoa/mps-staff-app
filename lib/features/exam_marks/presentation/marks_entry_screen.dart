@@ -87,7 +87,7 @@ class _MarksEntryScreenState extends ConsumerState<MarksEntryScreen> {
         child: marksState.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) {
-            final exception = err is ApiException ? err : ApiException.server(err.toString());
+            final exception = ApiException.from(err);
             return ApiErrorWidget(
               error: exception,
               onRetry: () => ref.refresh(marksEntryControllerProvider(

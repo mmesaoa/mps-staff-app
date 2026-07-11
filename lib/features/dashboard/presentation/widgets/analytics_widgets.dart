@@ -33,7 +33,7 @@ class AnalyticsHeroHeader extends ConsumerWidget {
         Container(
           width: double.infinity,
           height: 135 + MediaQuery.of(context).padding.top,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [AppColors.primaryDark, AppColors.primary], // Dark navy gradient
               begin: Alignment.topLeft,
@@ -71,12 +71,17 @@ class AnalyticsHeroHeader extends ConsumerWidget {
           ),
         ),
 
-        // Foreground Content
-        SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 20.0, right: 16.0, top: 16.0, bottom: 16.0),
-            child: Row(
+        // Foreground Content — vertically centred within the blue band (above
+        // the white curve) so the avatar / name / icons look balanced instead
+        // of hugging the status bar.
+        Positioned.fill(
+          bottom: 24,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 20.0, right: 16.0),
+              child: Center(
+                child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Avatar with Hamburger Badge
@@ -163,6 +168,8 @@ class AnalyticsHeroHeader extends ConsumerWidget {
                 ),
               ],
             ),
+            ),
+          ),
           ),
         ),
         
@@ -539,6 +546,14 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
       quickLinks.add(QuickLinkItem(icon: Icons.menu_book, label: 'Lesson Planner', color: Colors.blueGrey, onTap: () => context.go('/dashboard/lesson-plans')));
     }
 
+    if (perms.can(AppPermission.assessmentDashboardView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.fact_check_outlined, label: 'Assessment', color: Colors.deepPurple, onTap: () => context.go('/dashboard/assessment')));
+    }
+
+    if (perms.canAny({AppPermission.feesDueView, AppPermission.feesDueViewOwn})) {
+      quickLinks.add(QuickLinkItem(icon: Icons.payments_outlined, label: 'Fees Due', color: Colors.red, onTap: () => context.go('/dashboard/fees-due')));
+    }
+
     if (perms.can(AppPermission.hrStaffAttendanceMark)) {
       quickLinks.add(QuickLinkItem(icon: Icons.how_to_reg_outlined, label: 'Staff Attend.', color: AppColors.accent, onTap: () => context.go('/dashboard/mark-staff-attendance')));
     } else if (perms.can(AppPermission.homeworkManage) && perms.isTeacher) {
@@ -572,7 +587,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
       quickLinks.add(QuickLinkItem(icon: Icons.schedule, label: 'Timetable', color: AppColors.iconFgTimetable, onTap: () => context.go('/my-timetable')));
     }
     if (perms.can(AppPermission.feesViewReport)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.account_balance_wallet_outlined, label: 'Fees Due', color: AppColors.iconFgFees, onTap: () => context.go('/dashboard/fees-reports')));
+      quickLinks.add(QuickLinkItem(icon: Icons.account_balance_wallet_outlined, label: 'Fees', color: AppColors.iconFgFees, onTap: () => context.go('/dashboard/fees-reports')));
     }
 
     // --- COMMUNICATION LINKS ---
@@ -603,10 +618,10 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
           return Wrap(
             runSpacing: 20.0,
             alignment: WrapAlignment.start,
-            children: quickLinks.map((link) {
+            children: quickLinks.asMap().entries.map((entry) {
               return SizedBox(
                 width: itemWidth,
-                child: link,
+                child: _StaggeredReveal(index: entry.key, child: entry.value),
               );
             }).toList(),
           );
@@ -616,7 +631,10 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
   }
 }
 
-class QuickLinkItem extends StatelessWidget {
+/// A dashboard quick-link. The staff app's signature feel: a soft 3D/floating
+/// icon (gradient + depth shadow + glossy edge) that physically "pops" on
+/// press — distinct from the parent app's shimmer.
+class QuickLinkItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
@@ -633,17 +651,44 @@ class QuickLinkItem extends StatelessWidget {
   });
 
   @override
+  State<QuickLinkItem> createState() => _QuickLinkItemState();
+}
+
+class _QuickLinkItemState extends State<QuickLinkItem> {
+  bool _pressed = false;
+
+  void _setPressed(bool v) {
+    if (mounted) setState(() => _pressed = v);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Widget iconWidget = Container(
-      padding: const EdgeInsets.all(12),
+    final color = widget.color;
+
+    Widget iconWidget = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: color.withAlpha((0.12 * 255).round()),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.10)],
+        ),
         shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.55), width: 0.6),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: _pressed ? 0.30 : 0.18),
+            blurRadius: _pressed ? 5 : 14,
+            offset: Offset(0, _pressed ? 2 : 7),
+          ),
+        ],
       ),
-      child: Icon(icon, color: color, size: 26),
+      child: Icon(widget.icon, color: color, size: 26),
     );
 
-    if (badge != null && badge != '0' && badge!.isNotEmpty) {
+    if (widget.badge != null && widget.badge != '0' && widget.badge!.isNotEmpty) {
       iconWidget = Stack(
         clipBehavior: Clip.none,
         children: [
@@ -653,12 +698,9 @@ class QuickLinkItem extends StatelessWidget {
             top: -2,
             child: Container(
               padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
               child: Text(
-                badge!,
+                widget.badge!,
                 style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
               ),
             ),
@@ -668,24 +710,85 @@ class QuickLinkItem extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          iconWidget,
-          const SizedBox(height: 8),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) {
+        _setPressed(false);
+        widget.onTap();
+      },
+      onTapCancel: () => _setPressed(false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.86 : 1.0,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOut,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            iconWidget,
+            const SizedBox(height: 8),
+            Text(
+              widget.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// One-shot staggered entrance: tiles fade + scale + rise into place, each a
+/// beat after the previous, for a premium "deal the cards" reveal.
+class _StaggeredReveal extends StatefulWidget {
+  final int index;
+  final Widget child;
+  const _StaggeredReveal({required this.index, required this.child});
+
+  @override
+  State<_StaggeredReveal> createState() => _StaggeredRevealState();
+}
+
+class _StaggeredRevealState extends State<_StaggeredReveal> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+  late final Animation<double> _curve = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+
+  @override
+  void initState() {
+    super.initState();
+    // Cap the cumulative delay so a long grid still finishes quickly.
+    final delayMs = (widget.index * 28).clamp(0, 600);
+    Future.delayed(Duration(milliseconds: delayMs), () {
+      if (mounted) _c.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      builder: (context, child) {
+        final v = _curve.value;
+        return Opacity(
+          opacity: v,
+          child: Transform.translate(
+            offset: Offset(0, (1 - v) * 14),
+            child: Transform.scale(scale: 0.85 + (0.15 * v), child: child),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }
