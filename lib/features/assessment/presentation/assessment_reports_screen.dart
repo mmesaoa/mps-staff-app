@@ -8,6 +8,7 @@ import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/secure_pdf_viewer_screen.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/api/api_providers.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../data/assessment_repository.dart';
 import '../domain/assessment_models.dart';
 import 'assessment_widgets.dart';
@@ -139,8 +140,8 @@ class _AssessmentReportsScreenState extends ConsumerState<AssessmentReportsScree
                 child: DropdownButtonFormField<int>(
                   value: _classId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Class', isDense: true, border: OutlineInputBorder()),
-                  hint: Text(_loadingFilters ? 'Loading…' : 'Select class'),
+                  decoration: InputDecoration(labelText: ref.watch(terminologyProvider).classLabel, isDense: true, border: const OutlineInputBorder()),
+                  hint: Text(_loadingFilters ? 'Loading…' : 'Select ${ref.watch(terminologyProvider).classLabel.toLowerCase()}'),
                   items: _classes.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
                   onChanged: _onClassChanged,
                 ),
@@ -154,9 +155,9 @@ class _AssessmentReportsScreenState extends ConsumerState<AssessmentReportsScree
                 child: DropdownButtonFormField<int?>(
                   value: _subjectId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Subject', isDense: true, border: OutlineInputBorder()),
+                  decoration: InputDecoration(labelText: ref.watch(terminologyProvider).subjectLabel, isDense: true, border: const OutlineInputBorder()),
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('All subjects')),
+                    DropdownMenuItem<int?>(value: null, child: Text('All ${ref.watch(terminologyProvider).subjectsLabel.toLowerCase()}')),
                     ..._subjects.map((s) => DropdownMenuItem<int?>(value: s.id, child: Text(s.name))),
                   ],
                   onChanged: _classId == null ? null : (v) { setState(() => _subjectId = v); _load(); },
@@ -205,10 +206,10 @@ class _AssessmentReportsScreenState extends ConsumerState<AssessmentReportsScree
 
   Widget _body() {
     if (_classId == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text('Select a class to view reports.', style: TextStyle(color: Colors.grey)),
+          padding: const EdgeInsets.all(24),
+          child: Text('Select a ${ref.watch(terminologyProvider).classLabel.toLowerCase()} to view reports.', style: const TextStyle(color: Colors.grey)),
         ),
       );
     }
@@ -263,7 +264,7 @@ class _AssessmentReportsScreenState extends ConsumerState<AssessmentReportsScree
         ),
         const SizedBox(height: 12),
         if (subjectCmp.isNotEmpty) ...[
-          const Text('Subject comparison', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('${ref.watch(terminologyProvider).subjectLabel} comparison', style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           ...subjectCmp.map((s) => _barRow(s['subject']?.toString() ?? '—', (s['avg_pct'] as num?)?.toDouble())),
           const SizedBox(height: 12),
@@ -329,9 +330,9 @@ class _AssessmentReportsScreenState extends ConsumerState<AssessmentReportsScree
         Row(
           children: [
             if (result?['class_avg'] != null)
-              Expanded(child: Text('Class average: ${result!['class_avg']}%', style: const TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(child: Text('${ref.watch(terminologyProvider).classLabel} average: ${result!['class_avg']}%', style: const TextStyle(fontWeight: FontWeight.bold))),
             OutlinedButton.icon(
-              onPressed: () => _openPdf('ranking_pdf', 'Class ranking'),
+              onPressed: () => _openPdf('ranking_pdf', '${ref.read(terminologyProvider).classLabel} ranking'),
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
               label: const Text('PDF'),
             ),

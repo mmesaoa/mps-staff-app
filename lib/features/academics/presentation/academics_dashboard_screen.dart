@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import '../../../core/branding/branding_providers.dart';
+import '../../../core/branding/terminology.dart';
 import 'academic_dashboard_providers.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
@@ -15,11 +17,11 @@ class AcademicsDashboardScreen extends ConsumerWidget {
 
     return MainScaffold(
       title: 'Academics',
-      body: _buildBody(context, state, controller),
+      body: _buildBody(context, state, controller, ref.watch(terminologyProvider)),
     );
   }
 
-  Widget _buildBody(BuildContext context, AcademicDashboardState state, AcademicDashboardController controller) {
+  Widget _buildBody(BuildContext context, AcademicDashboardState state, AcademicDashboardController controller, Terminology terms) {
     if (state.isLoading) {
       return SkeletonLoaders.dashboard();
     }
@@ -81,7 +83,7 @@ class AcademicsDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // 2. Summary Grid
-            _buildSummaryGrid(summary),
+            _buildSummaryGrid(summary, terms),
             const SizedBox(height: 24),
 
             // 3. Timetable Alerts
@@ -99,13 +101,13 @@ class AcademicsDashboardScreen extends ConsumerWidget {
             // 5. Teacher Workload
             _buildSectionHeader('Teacher Workload', Icons.menu_book, Colors.orange),
             const SizedBox(height: 16),
-            _buildTeacherWorkload(lists['teacher_workload'] ?? []),
+            _buildTeacherWorkload(lists['teacher_workload'] ?? [], terms),
             const SizedBox(height: 24),
 
             // 6. Class Overview
-            _buildSectionHeader('Class & Section Overview', Icons.class_, Colors.teal),
+            _buildSectionHeader('${terms.classLabel} & ${terms.sectionLabel} Overview', Icons.class_, Colors.teal),
             const SizedBox(height: 16),
-            _buildClassOverview(lists['class_overview'] ?? []),
+            _buildClassOverview(lists['class_overview'] ?? [], terms),
             const SizedBox(height: 24),
           ],
         ),
@@ -124,7 +126,7 @@ class AcademicsDashboardScreen extends ConsumerWidget {
   }
 
   // --- Summary Grid ---
-  Widget _buildSummaryGrid(Map<String, dynamic> summary) {
+  Widget _buildSummaryGrid(Map<String, dynamic> summary, Terminology terms) {
     return GridView.count(
       crossAxisCount: 2,
       crossAxisSpacing: 10,
@@ -133,8 +135,8 @@ class AcademicsDashboardScreen extends ConsumerWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _buildStatCard('Total Classes', summary['total_classes']?.toString() ?? '0', Icons.meeting_room, Colors.blue),
-        _buildStatCard('Active Subjects', summary['active_subjects']?.toString() ?? '0', Icons.menu_book, Colors.purple),
+        _buildStatCard('Total ${terms.classesLabel}', summary['total_classes']?.toString() ?? '0', Icons.meeting_room, Colors.blue),
+        _buildStatCard('Active ${terms.subjectsLabel}', summary['active_subjects']?.toString() ?? '0', Icons.menu_book, Colors.purple),
         _buildStatCard('Timetable Done', '${summary['timetable_completion_percent'] ?? 0}%', Icons.event_available, Colors.green),
         _buildStatCard('Students', summary['students_to_promote']?.toString() ?? '0', Icons.people, Colors.orange),
       ],
@@ -310,7 +312,7 @@ class AcademicsDashboardScreen extends ConsumerWidget {
   }
 
   // --- Teacher Workload ---
-  Widget _buildTeacherWorkload(List<dynamic> workload) {
+  Widget _buildTeacherWorkload(List<dynamic> workload, Terminology terms) {
     if (workload.isEmpty) {
       return const Text('No teacher workload data.');
     }
@@ -343,7 +345,7 @@ class AcademicsDashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12)),
-                child: Text('${w['subjects_count']} Subjects', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Text('${w['subjects_count']} ${terms.subjectsLabel}', style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -353,7 +355,7 @@ class AcademicsDashboardScreen extends ConsumerWidget {
   }
 
   // --- Class Overview ---
-  Widget _buildClassOverview(List<dynamic> classes) {
+  Widget _buildClassOverview(List<dynamic> classes, Terminology terms) {
     if (classes.isEmpty) {
       return const Text('No classes found.');
     }
@@ -416,7 +418,7 @@ class AcademicsDashboardScreen extends ConsumerWidget {
                       child: Icon(Icons.meeting_room_outlined, size: 14, color: color.shade700),
                     ),
                     const SizedBox(width: 8),
-                    Text('Sections: ${c['sections']}', style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w500)),
+                    Text('${terms.sectionsLabel}: ${c['sections']}', style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w500)),
                   ],
                 ),
                 const SizedBox(height: 8),

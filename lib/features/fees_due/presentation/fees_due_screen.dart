@@ -7,6 +7,7 @@ import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../shared/widgets/secure_pdf_viewer_screen.dart';
 import '../../../core/api/api_exception.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../data/fees_due_repository.dart';
 import '../domain/fees_due_models.dart';
 import 'fees_due_providers.dart';
@@ -123,7 +124,7 @@ class _FeesDueScreenState extends ConsumerState<FeesDueScreen> {
   @override
   Widget build(BuildContext context) {
     return MainScaffold(
-      title: 'Class Due Fees',
+      title: '${ref.watch(terminologyProvider).classLabel} Due Fees',
       actions: [
         IconButton(
           icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -175,10 +176,10 @@ class _FeesDueScreenState extends ConsumerState<FeesDueScreen> {
                 children: [
                   Expanded(
                     child: _dropdown<int?>(
-                      label: 'Class',
+                      label: ref.watch(terminologyProvider).classLabel,
                       value: _classId,
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('My classes')),
+                        DropdownMenuItem<int?>(value: null, child: Text('My ${ref.watch(terminologyProvider).classesLabel.toLowerCase()}')),
                         ...classes.map((c) => DropdownMenuItem<int?>(value: c.id, child: Text(c.name))),
                       ],
                       onChanged: (v) {
@@ -193,7 +194,7 @@ class _FeesDueScreenState extends ConsumerState<FeesDueScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _dropdown<int?>(
-                      label: 'Section',
+                      label: ref.watch(terminologyProvider).sectionLabel,
                       value: _sectionId,
                       items: [
                         const DropdownMenuItem<int?>(value: null, child: Text('All')),

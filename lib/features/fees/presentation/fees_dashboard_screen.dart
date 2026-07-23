@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/core/api/api_exception.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'package:school_erp_staff_app/features/fees/data/fees_dashboard_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
@@ -104,11 +105,11 @@ class FeesDashboardScreen extends ConsumerWidget {
           onPressed: () => context.push('/dashboard/fees-reports/finance-reports'),
         ),
       ],
-      body: _buildBody(context, state, controller),
+      body: _buildBody(context, state, controller, ref.watch(terminologyProvider).classLabel),
     );
   }
 
-  Widget _buildBody(BuildContext context, FeesDashboardState state, FeesDashboardController controller) {
+  Widget _buildBody(BuildContext context, FeesDashboardState state, FeesDashboardController controller, String classLabel) {
     if (state.isLoading && state.data == null) {
       return SkeletonLoaders.dashboard();
     }
@@ -189,7 +190,7 @@ class FeesDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // 5. Horizontal Bar Chart: Due vs Paid by Class
-            _buildSectionHeader('Due vs Paid by Class', Icons.bar_chart, Colors.purple),
+            _buildSectionHeader('Due vs Paid by $classLabel', Icons.bar_chart, Colors.purple),
             const SizedBox(height: 16),
             _buildClassBarChart(charts['classDue']),
             const SizedBox(height: 24),

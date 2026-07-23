@@ -7,6 +7,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import 'package:school_erp_staff_app/features/homework_management/presentation/homework_providers.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'classwork_providers.dart';
 
 class ClassworkFormScreen extends ConsumerStatefulWidget {
@@ -159,9 +160,9 @@ class _ClassworkFormScreenState extends ConsumerState<ClassworkFormScreen> {
         if(mounted) setState(() => _isLoading = false);
       }
     } else if (_selectedSubject == null && _selectedType != 'Logbook') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a class, section, and subject.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()}, ${ref.read(terminologyProvider).sectionLabel.toLowerCase()}, and ${ref.read(terminologyProvider).subjectLabel.toLowerCase()}.')));
     } else if (_selectedClass == null || _selectedSection == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a class and section.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()} and ${ref.read(terminologyProvider).sectionLabel.toLowerCase()}.')));
     }
   }
 
@@ -290,8 +291,8 @@ class _ClassworkFormScreenState extends ConsumerState<ClassworkFormScreen> {
                          _selectedSection = null;
                          _selectedSubject = null;
                        }),
-                       decoration: const InputDecoration(labelText: 'Class', border: OutlineInputBorder()),
-                       validator: (val) => val == null ? 'Please select a class' : null,
+                       decoration: InputDecoration(labelText: ref.watch(terminologyProvider).classLabel, border: const OutlineInputBorder()),
+                       validator: (val) => val == null ? 'Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()}' : null,
                     ),
                     const SizedBox(height: 16),
                     if (_selectedClass != null)
@@ -302,8 +303,8 @@ class _ClassworkFormScreenState extends ConsumerState<ClassworkFormScreen> {
                            _selectedSection = val;
                            _selectedSubject = null;
                         }),
-                        decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
-                        validator: (val) => val == null ? 'Please select a section' : null,
+                        decoration: InputDecoration(labelText: ref.watch(terminologyProvider).sectionLabel, border: const OutlineInputBorder()),
+                        validator: (val) => val == null ? 'Please select a ${ref.read(terminologyProvider).sectionLabel.toLowerCase()}' : null,
                       ),
                     const SizedBox(height: 16),
                     if (_selectedClass != null && _selectedType != 'Logbook') ...[
@@ -344,10 +345,11 @@ class _ClassworkFormScreenState extends ConsumerState<ClassworkFormScreen> {
                             data: (subjects) {
                               if (subjects.isEmpty) {
                                 return TextFormField(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Subject',
-                                    border: OutlineInputBorder(),
-                                    hintText: 'No subjects assigned to this class',
+                                  decoration: InputDecoration(
+                                    labelText: ref.watch(terminologyProvider).subjectLabel,
+                                    border: const OutlineInputBorder(),
+                                    hintText:
+                                        'No ${ref.watch(terminologyProvider).subjectsLabel.toLowerCase()} assigned to this ${ref.watch(terminologyProvider).classLabel.toLowerCase()}',
                                   ),
                                   enabled: false,
                                 );
@@ -356,8 +358,8 @@ class _ClassworkFormScreenState extends ConsumerState<ClassworkFormScreen> {
                                 value: _selectedSubject,
                                 items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s['name'] as String))).toList(),
                                 onChanged: (val) => setState(() => _selectedSubject = val),
-                                decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
-                                validator: (val) => val == null ? 'Please select a subject' : null,
+                                decoration: InputDecoration(labelText: ref.watch(terminologyProvider).subjectLabel, border: const OutlineInputBorder()),
+                                validator: (val) => val == null ? 'Please select a ${ref.read(terminologyProvider).subjectLabel.toLowerCase()}' : null,
                               );
                             },
                           );

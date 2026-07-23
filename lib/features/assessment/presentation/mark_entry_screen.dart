@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../core/api/api_exception.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../data/assessment_repository.dart';
 import '../domain/assessment_models.dart';
 import 'assessment_widgets.dart';
@@ -178,7 +179,7 @@ class _MarkEntryScreenState extends ConsumerState<MarkEntryScreen> {
         if (_busy) const LinearProgressIndicator(minHeight: 2),
         Expanded(
           child: grid.students.isEmpty
-              ? const Center(child: Text('No students enrolled for this class/section.', style: TextStyle(color: Colors.grey)))
+              ? Center(child: Text('No students enrolled for this ${ref.watch(terminologyProvider).classLabel.toLowerCase()}/${ref.watch(terminologyProvider).sectionLabel.toLowerCase()}.', style: const TextStyle(color: Colors.grey)))
               : ListView.builder(
                   padding: const EdgeInsets.only(bottom: 16),
                   itemCount: grid.students.length,

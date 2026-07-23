@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import '../../../core/branding/branding_providers.dart';
 import 'homework_providers.dart';
 import 'homework_controller.dart';
 
@@ -98,8 +99,8 @@ class _CreateHomeworkScreenState extends ConsumerState<CreateHomeworkScreen> {
                          _selectedSection = null;
                          _selectedSubject = null;
                        }),
-                       decoration: const InputDecoration(labelText: 'Class', border: OutlineInputBorder()),
-                       validator: (val) => val == null ? 'Please select a class' : null,
+                       decoration: InputDecoration(labelText: ref.watch(terminologyProvider).classLabel, border: const OutlineInputBorder()),
+                       validator: (val) => val == null ? 'Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()}' : null,
                     ),
                     const SizedBox(height: 16),
                     if (_selectedClass != null)
@@ -110,8 +111,8 @@ class _CreateHomeworkScreenState extends ConsumerState<CreateHomeworkScreen> {
                            _selectedSection = val;
                            _selectedSubject = null;
                         }),
-                        decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
-                        validator: (val) => val == null ? 'Please select a section' : null,
+                        decoration: InputDecoration(labelText: ref.watch(terminologyProvider).sectionLabel, border: const OutlineInputBorder()),
+                        validator: (val) => val == null ? 'Please select a ${ref.read(terminologyProvider).sectionLabel.toLowerCase()}' : null,
                       ),
                     const SizedBox(height: 16),
                     if (_selectedClass != null) ...[
@@ -128,10 +129,11 @@ class _CreateHomeworkScreenState extends ConsumerState<CreateHomeworkScreen> {
                               if (subjects.isEmpty) {
                                 // ✅ THE FIX: Removed 'const' from TextFormField
                                 return TextFormField(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Subject',
-                                    border: OutlineInputBorder(),
-                                    hintText: 'No subjects assigned to this class',
+                                  decoration: InputDecoration(
+                                    labelText: ref.watch(terminologyProvider).subjectLabel,
+                                    border: const OutlineInputBorder(),
+                                    hintText:
+                                        'No ${ref.watch(terminologyProvider).subjectsLabel.toLowerCase()} assigned to this ${ref.watch(terminologyProvider).classLabel.toLowerCase()}',
                                   ),
                                   enabled: false,
                                 );
@@ -140,8 +142,8 @@ class _CreateHomeworkScreenState extends ConsumerState<CreateHomeworkScreen> {
                                 value: _selectedSubject,
                                 items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s['name'] as String))).toList(),
                                 onChanged: (val) => setState(() => _selectedSubject = val),
-                                decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
-                                validator: (val) => val == null ? 'Please select a subject' : null,
+                                decoration: InputDecoration(labelText: ref.watch(terminologyProvider).subjectLabel, border: const OutlineInputBorder()),
+                                validator: (val) => val == null ? 'Please select a ${ref.read(terminologyProvider).subjectLabel.toLowerCase()}' : null,
                               );
                             },
                           );

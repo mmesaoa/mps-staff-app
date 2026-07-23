@@ -496,7 +496,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
 
     // --- SELF-SERVICE LINKS ---
     if (perms.can(AppPermission.selfAttendanceView) && !perms.isAdmin) {
-      quickLinks.add(QuickLinkItem(icon: Icons.fingerprint, label: 'My Attend.', color: AppColors.iconFgNotices, onTap: () => context.go('/dashboard/self-attendance')));
+      quickLinks.add(QuickLinkItem(icon: Icons.fingerprint, label: 'My Attend.', color: AppColors.iconFgNotices, kind: TileKind.doNow, actionKey: 'self_punch', onTap: () => context.go('/dashboard/self-attendance')));
     }
 
     // --- ACADEMIC LINKS ---
@@ -504,7 +504,10 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
       quickLinks.add(QuickLinkItem(icon: Icons.school_outlined, label: 'Academics', color: AppColors.iconFgStudents, onTap: () => context.go('/dashboard/academics')));
     }
     if (perms.can(AppPermission.attendanceTake)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.calendar_month_outlined, label: 'Attendance', color: AppColors.iconFgAttendance, onTap: () => context.go('/dashboard/attendance')));
+      quickLinks.add(QuickLinkItem(icon: Icons.calendar_month_outlined, label: 'Attendance', color: AppColors.iconFgAttendance, kind: TileKind.doNow, actionKey: 'attendance', onTap: () => context.go('/dashboard/attendance')));
+    }
+    if (perms.can(AppPermission.liveClassView)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.videocam_outlined, label: 'Live Class', color: Colors.teal, kind: TileKind.doNow, onTap: () => context.go('/dashboard/live-classes')));
     }
     if (perms.can(AppPermission.examMarksEntry)) {
       quickLinks.add(QuickLinkItem(icon: Icons.grading_outlined, label: 'Marks', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/exam-marks')));
@@ -555,9 +558,9 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     }
 
     if (perms.can(AppPermission.hrStaffAttendanceMark)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.how_to_reg_outlined, label: 'Staff Attend.', color: AppColors.accent, onTap: () => context.go('/dashboard/mark-staff-attendance')));
+      quickLinks.add(QuickLinkItem(icon: Icons.how_to_reg_outlined, label: 'Staff Attend.', color: AppColors.accent, kind: TileKind.doNow, onTap: () => context.go('/dashboard/mark-staff-attendance')));
     } else if (perms.can(AppPermission.homeworkManage) && perms.isTeacher) {
-      quickLinks.add(QuickLinkItem(icon: Icons.edit_document, label: 'Homework', color: AppColors.accent, onTap: () => context.go('/dashboard/homework')));
+      quickLinks.add(QuickLinkItem(icon: Icons.edit_document, label: 'Homework', color: AppColors.accent, kind: TileKind.doNow, actionKey: 'homework', onTap: () => context.go('/dashboard/homework')));
       quickLinks.add(QuickLinkItem(icon: Icons.menu_book, label: 'Classwork', color: Colors.green, onTap: () => context.go('/dashboard/classwork')));
     }
 
@@ -571,64 +574,210 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     
     // --- PERSONAL / HR LINKS ---
     if (perms.can(AppPermission.hrStaffAttendanceReport)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.analytics_outlined, label: 'Logs', color: AppColors.iconFgChatbot, onTap: () => context.go('/staff-reports')));
+      quickLinks.add(QuickLinkItem(icon: Icons.analytics_outlined, label: 'Logs', color: AppColors.iconFgChatbot, kind: TileKind.report, onTap: () => context.go('/staff-reports')));
     } else if (perms.can(AppPermission.selfAttendanceView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.analytics_outlined, label: 'My Logs', color: AppColors.iconFgChatbot, onTap: () => context.go('/staff-reports')));
+      quickLinks.add(QuickLinkItem(icon: Icons.analytics_outlined, label: 'My Logs', color: AppColors.iconFgChatbot, kind: TileKind.report, onTap: () => context.go('/staff-reports')));
     }
     if (perms.can(AppPermission.selfLeaveApply)) {
       quickLinks.add(QuickLinkItem(icon: Icons.check_circle_outline, label: 'Leaves', color: AppColors.iconFgLeave, onTap: () => context.go('/dashboard/my-leave')));
     }
     if (perms.can(AppPermission.hrLeaveApprove)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.approval_outlined, label: 'Staff Leave', color: AppColors.accent, onTap: () => context.go('/dashboard/staff-leave-approval')));
+      quickLinks.add(QuickLinkItem(icon: Icons.approval_outlined, label: 'Staff Leave', color: AppColors.accent, kind: TileKind.doNow, actionKey: 'approvals', onTap: () => context.go('/dashboard/staff-leave-approval')));
     }
     quickLinks.add(QuickLinkItem(icon: Icons.person_outline, label: 'Profile', color: AppColors.iconFgProfile, onTap: () => context.go('/my-profile')));
-    
+
     if (perms.can(AppPermission.timetableView) && perms.isTeacher) {
       quickLinks.add(QuickLinkItem(icon: Icons.schedule, label: 'Timetable', color: AppColors.iconFgTimetable, onTap: () => context.go('/my-timetable')));
     }
     if (perms.can(AppPermission.feesViewReport)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.account_balance_wallet_outlined, label: 'Fees', color: AppColors.iconFgFees, onTap: () => context.go('/dashboard/fees-reports')));
+      quickLinks.add(QuickLinkItem(icon: Icons.account_balance_wallet_outlined, label: 'Fees', color: AppColors.iconFgFees, kind: TileKind.report, onTap: () => context.go('/dashboard/fees-reports')));
     }
 
     // --- COMMUNICATION LINKS ---
     if (perms.can(AppPermission.communicationLogView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.history, label: 'Comm. Log', color: AppColors.iconFgComms, onTap: () => context.go('/dashboard/communication-log')));
+      quickLinks.add(QuickLinkItem(icon: Icons.history, label: 'Comm. Log', color: AppColors.iconFgComms, kind: TileKind.report, onTap: () => context.go('/dashboard/communication-log')));
     }
 
     // --- SYSTEM LINKS ---
     if (perms.can(AppPermission.systemAuditTrailView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.admin_panel_settings_outlined, label: 'Audit Trail', color: AppColors.iconFgChatbot, onTap: () => context.go('/dashboard/audit-trail')));
+      quickLinks.add(QuickLinkItem(icon: Icons.admin_panel_settings_outlined, label: 'Audit Trail', color: AppColors.iconFgChatbot, kind: TileKind.report, onTap: () => context.go('/dashboard/audit-trail')));
     }
     quickLinks.add(QuickLinkItem(icon: Icons.campaign_outlined, label: 'Notices', color: AppColors.iconFgComms, onTap: () => context.go('/notices')));
-    quickLinks.add(QuickLinkItem(icon: Icons.logout, label: 'Logout', color: AppColors.error, onTap: () => ref.read(authControllerProvider.notifier).logout()));
 
     return quickLinks;
+  }
+
+  /// Pending counts keyed by `action_key`, from the dashboard payload.
+  static Map<String, int> _pendingCounts(Map<String, dynamic> data) {
+    final raw = data['action_center'];
+    if (raw is! List) return const {};
+
+    final counts = <String, int>{};
+    for (final entry in raw) {
+      if (entry is Map && entry['key'] is String) {
+        final count = entry['count'];
+        if (count is int && count > 0) counts[entry['key'] as String] = count;
+      }
+    }
+    return counts;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quickLinks = getQuickLinks(context, ref, data);
+    final counts = _pendingCounts(data);
+
+    // Section membership is static — a tile does not move between sections as
+    // counts change, because a grid that reshuffles daily is harder to learn
+    // than one that stays put. Counts only drive the badge.
+    final today = quickLinks
+        .where((l) => l.kind == TileKind.doNow)
+        .map((l) {
+          final n = l.actionKey == null ? null : counts[l.actionKey];
+          return n == null ? l : l.withBadge('$n');
+        })
+        .toList();
+    final manage = quickLinks.where((l) => l.kind == TileKind.manage).toList();
+    final reports = quickLinks.where((l) => l.kind == TileKind.report).toList();
+
+    final pendingTotal = counts.values.fold<int>(0, (a, b) => a + b);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // 4 items per row
           final itemWidth = constraints.maxWidth / 4;
-          return Wrap(
-            runSpacing: 20.0,
-            alignment: WrapAlignment.start,
-            children: quickLinks.asMap().entries.map((entry) {
-              return SizedBox(
-                width: itemWidth,
-                child: _StaggeredReveal(index: entry.key, child: entry.value),
+
+          // Stagger runs across the whole screen, not per section, so the
+          // reveal still reads as one sweep.
+          var revealIndex = 0;
+          Widget grid(List<QuickLinkItem> items) => Wrap(
+                runSpacing: 20.0,
+                alignment: WrapAlignment.start,
+                children: items.map((item) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: _StaggeredReveal(index: revealIndex++, child: item),
+                  );
+                }).toList(),
               );
-            }).toList(),
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (today.isNotEmpty) ...[
+                _SectionHeader(
+                  title: 'Today',
+                  trailing: pendingTotal > 0 ? '$pendingTotal pending' : null,
+                ),
+                grid(today),
+                const SizedBox(height: 22),
+              ],
+              if (manage.isNotEmpty) ...[
+                const _SectionHeader(title: 'Manage'),
+                grid(manage),
+                const SizedBox(height: 22),
+              ],
+              if (reports.isNotEmpty) ...[
+                const _SectionHeader(
+                  title: 'Reports and records',
+                  subtitle: 'view only',
+                  icon: Icons.visibility_outlined,
+                ),
+                grid(reports),
+              ],
+              const SizedBox(height: 24),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+                  icon: const Icon(Icons.logout, size: 18, color: AppColors.error),
+                  label: const Text('Log out', style: TextStyle(color: AppColors.error)),
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
+}
+
+/// Section divider for the quick-links grid. Carries the label that tells the
+/// user what kind of thing sits below it.
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String? trailing;
+  final IconData? icon;
+
+  const _SectionHeader({
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0, top: 4.0),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 15, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(width: 8),
+            Text(
+              subtitle!,
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ],
+          const Spacer(),
+          if (trailing != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                trailing!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.error,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What a tile *does*, which drives both which section it lands in and how it
+/// is painted. The visual weight is deliberate: solid tiles demand action,
+/// tinted tiles are places to work, drained tiles are read-only lookups that
+/// should not compete for attention.
+enum TileKind {
+  /// Something owed today. Promoted into the Today strip when it has a count.
+  doNow,
+
+  /// A module hub — contains both doing and viewing behind it.
+  manage,
+
+  /// Read-only. Nothing here changes data.
+  report,
 }
 
 /// A dashboard quick-link. The staff app's signature feel: a soft 3D/floating
@@ -640,6 +789,12 @@ class QuickLinkItem extends StatefulWidget {
   final Color color;
   final VoidCallback onTap;
   final String? badge;
+  final TileKind kind;
+
+  /// Matches a `key` in the API's `action_center` list. When the backend
+  /// reports a non-zero count for this key the tile is promoted into Today
+  /// and shows the count as a badge.
+  final String? actionKey;
 
   const QuickLinkItem({
     super.key,
@@ -648,7 +803,20 @@ class QuickLinkItem extends StatefulWidget {
     required this.color,
     required this.onTap,
     this.badge,
+    this.kind = TileKind.manage,
+    this.actionKey,
   });
+
+  /// Copy carrying a resolved pending count through as the badge.
+  QuickLinkItem withBadge(String? value) => QuickLinkItem(
+        icon: icon,
+        label: label,
+        color: color,
+        onTap: onTap,
+        badge: value,
+        kind: kind,
+        actionKey: actionKey,
+      );
 
   @override
   State<QuickLinkItem> createState() => _QuickLinkItemState();
@@ -664,28 +832,55 @@ class _QuickLinkItemState extends State<QuickLinkItem> {
   @override
   Widget build(BuildContext context) {
     final color = widget.color;
+    final isDoNow = widget.kind == TileKind.doNow;
+    final isReport = widget.kind == TileKind.report;
+
+    // Read-only tiles are drained of colour so they stop competing with the
+    // things that actually need doing — the single biggest readability win on
+    // this screen. Do-now tiles invert to a solid fill to pull the eye first.
+    final Color iconColor = isDoNow
+        ? Colors.white
+        : isReport
+            ? AppColors.textSecondary
+            : color;
 
     Widget iconWidget = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.10)],
+        color: isDoNow ? color : null,
+        gradient: isDoNow
+            ? null
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isReport
+                    ? [
+                        AppColors.textSecondary.withValues(alpha: 0.08),
+                        AppColors.textSecondary.withValues(alpha: 0.04),
+                      ]
+                    : [color.withValues(alpha: 0.22), color.withValues(alpha: 0.10)],
+              ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isReport
+              ? AppColors.textSecondary.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.55),
+          width: isReport ? 0.8 : 0.6,
         ),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.55), width: 0.6),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: _pressed ? 0.30 : 0.18),
-            blurRadius: _pressed ? 5 : 14,
-            offset: Offset(0, _pressed ? 2 : 7),
-          ),
-        ],
+        // Read-only tiles sit flat on the page; only actionable tiles float.
+        boxShadow: isReport
+            ? null
+            : [
+                BoxShadow(
+                  color: color.withValues(alpha: _pressed ? 0.30 : (isDoNow ? 0.26 : 0.18)),
+                  blurRadius: _pressed ? 5 : 14,
+                  offset: Offset(0, _pressed ? 2 : 7),
+                ),
+              ],
       ),
-      child: Icon(widget.icon, color: color, size: 26),
+      child: Icon(widget.icon, color: iconColor, size: 26),
     );
 
     if (widget.badge != null && widget.badge != '0' && widget.badge!.isNotEmpty) {
@@ -729,10 +924,10 @@ class _QuickLinkItemState extends State<QuickLinkItem> {
             Text(
               widget.label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                fontWeight: isReport ? FontWeight.w500 : FontWeight.w700,
+                color: isReport ? AppColors.textSecondary : AppColors.textPrimary,
               ),
             ),
           ],

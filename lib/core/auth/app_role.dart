@@ -61,6 +61,8 @@ enum AppRole {
             AppPermission.homeworkManage,
             AppPermission.examMarksEntry,
             AppPermission.timetableView,
+            AppPermission.liveClassView,
+            AppPermission.liveClassManageOwn,
             // HR
             AppPermission.hrLeaveApprove,
             AppPermission.hrStaffView,
@@ -87,6 +89,8 @@ enum AppRole {
             AppPermission.homeworkManage,
             AppPermission.examMarksEntry,
             AppPermission.timetableView,
+            AppPermission.liveClassView,
+            AppPermission.liveClassManageOwn,
             // Communication
             AppPermission.noticeView,
             // Profile

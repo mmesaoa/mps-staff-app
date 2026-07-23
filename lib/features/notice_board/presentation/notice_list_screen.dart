@@ -6,6 +6,7 @@ import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/shared/widgets/api_error_widget.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'notice_providers.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
@@ -87,7 +88,7 @@ class _NoticeListScreenState extends ConsumerState<NoticeListScreen> {
                           const SizedBox(width: 8),
                           _buildFilterChip('Parents', 'parents', filterType),
                           const SizedBox(width: 8),
-                          _buildFilterChip('Class Specific', 'class', filterType),
+                          _buildFilterChip('${ref.watch(terminologyProvider).classLabel} Specific', 'class', filterType),
                         ],
                       ),
                     ),
@@ -169,13 +170,13 @@ class _NoticeListScreenState extends ConsumerState<NoticeListScreen> {
   }
 }
 
-class NoticeCard extends StatelessWidget {
+class NoticeCard extends ConsumerWidget {
   final dynamic notice;
 
   const NoticeCard({super.key, required this.notice});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final date = DateTime.parse(notice['published_at']);
     final formattedDate = DateFormat('MMM dd, yyyy').format(date);
     
@@ -196,7 +197,7 @@ class NoticeCard extends StatelessWidget {
       audienceTextColor = Colors.orange.shade800;
       audienceIcon = Icons.family_restroom;
     } else if (notice['recipient_type'] == 'class') {
-      audienceLabel = notice['noticable'] != null ? notice['noticable']['name'] : 'Class';
+      audienceLabel = notice['noticable'] != null ? notice['noticable']['name'] : ref.watch(terminologyProvider).classLabel;
       audienceColor = Colors.green.shade100;
       audienceTextColor = Colors.green.shade800;
       audienceIcon = Icons.class_;

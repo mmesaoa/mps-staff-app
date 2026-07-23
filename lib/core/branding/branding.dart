@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
+import 'terminology.dart';
 
 /// Runtime branding for the staff app, built from the backend `/branding`
 /// payload — or from [Branding.fallback] (the values the app shipped with) when
@@ -26,6 +27,11 @@ class Branding {
   final Color onPrimary;
   final Color onSecondary;
 
+  /// Academic wording (schema v2). Independent of [dynamicEnabled] — a school
+  /// may relabel Class→Year while keeping the stock theme, so [effective]
+  /// must never collapse this together with the colors.
+  final Terminology terminology;
+
   const Branding({
     required this.schemaVersion,
     required this.dynamicEnabled,
@@ -39,6 +45,7 @@ class Branding {
     required this.accent,
     required this.onPrimary,
     required this.onSecondary,
+    this.terminology = const Terminology.fallback(),
   });
 
   /// Compile-time fallback — the exact Heritage values the staff app shipped with.
@@ -54,7 +61,8 @@ class Branding {
         tertiary = const Color(0xFFD4AF37),
         accent = const Color(0xFFF37021),
         onPrimary = const Color(0xFFFFFFFF),
-        onSecondary = const Color(0xFFFFFFFF);
+        onSecondary = const Color(0xFFFFFFFF),
+        terminology = const Terminology.fallback();
 
   /// Parse a `/branding` payload. Never throws — falls back per field.
   factory Branding.fromJson(Map<String, dynamic> json) {
@@ -76,11 +84,32 @@ class Branding {
       accent: _color(colors['accent'], fb.accent),
       onPrimary: _color(colors['onPrimary'], fb.onPrimary),
       onSecondary: _color(colors['onSecondary'], fb.onSecondary),
+      terminology: Terminology.fromJson(json),
     );
   }
 
-  /// When dynamic branding is OFF, the app looks exactly as it shipped (N5).
-  Branding get effective => dynamicEnabled ? this : const Branding.fallback();
+  /// When dynamic branding is OFF, the app looks exactly as it shipped (N5) —
+  /// EXCEPT the academic wording, which has its own server-side kill switch
+  /// (already honoured inside [Terminology.fromJson]) and must survive here.
+  Branding get effective => dynamicEnabled
+      ? this
+      : const Branding.fallback().copyWith(terminology: terminology);
+
+  Branding copyWith({Terminology? terminology}) => Branding(
+        schemaVersion: schemaVersion,
+        dynamicEnabled: dynamicEnabled,
+        appName: appName,
+        logoUrl: logoUrl,
+        primary: primary,
+        primaryLight: primaryLight,
+        primaryDark: primaryDark,
+        secondary: secondary,
+        tertiary: tertiary,
+        accent: accent,
+        onPrimary: onPrimary,
+        onSecondary: onSecondary,
+        terminology: terminology ?? this.terminology,
+      );
 
   // ── Defensive parsers ──────────────────────────────────────────────────────
 

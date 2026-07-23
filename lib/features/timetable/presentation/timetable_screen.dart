@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/features/timetable/presentation/timetable_providers.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
+import '../../../core/branding/branding_providers.dart';
 
 class TimetableScreen extends ConsumerWidget {
   const TimetableScreen({super.key});
@@ -10,6 +11,9 @@ class TimetableScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final timetableAsync = ref.watch(timetableProvider);
+    // Resolved here (not inside the lazy itemBuilder) — ref.watch is only
+    // legal during build; the closure below captures the value.
+    final terms = ref.watch(terminologyProvider);
     const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     return MainScaffold(
@@ -166,7 +170,7 @@ class TimetableScreen extends ConsumerWidget {
                                                     Icon(Icons.groups, size: 14, color: Colors.grey.shade500),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                      'Class ${period.className} • Sec ${period.sectionName}',
+                                                      '${terms.classLabel} ${period.className} • ${terms.sectionLabel} ${period.sectionName}',
                                                       style: TextStyle(color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.bold),
                                                     ),
                                                   ],

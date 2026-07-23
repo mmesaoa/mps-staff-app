@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../core/api/api_exception.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../data/assessment_repository.dart';
 import '../domain/assessment_models.dart';
 import 'assessment_providers.dart';
@@ -100,7 +101,7 @@ class _AssessmentFormScreenState extends ConsumerState<AssessmentFormScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_classId == null || _subjectId == null) {
-      _snack('Pick a class and subject.', error: true);
+      _snack('Pick a ${ref.read(terminologyProvider).classLabel.toLowerCase()} and ${ref.read(terminologyProvider).subjectLabel.toLowerCase()}.', error: true);
       return;
     }
     if (!isEdit && _scheduledDate == null) {
@@ -184,11 +185,12 @@ class _AssessmentFormScreenState extends ConsumerState<AssessmentFormScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
-              child: const Text('Marks already entered — class, subject and section are locked.',
-                  style: TextStyle(fontSize: 12, color: Colors.brown)),
+              child: Text(
+                  'Marks already entered — ${ref.watch(terminologyProvider).classLabel.toLowerCase()}, ${ref.watch(terminologyProvider).subjectLabel.toLowerCase()} and ${ref.watch(terminologyProvider).sectionLabel.toLowerCase()} are locked.',
+                  style: const TextStyle(fontSize: 12, color: Colors.brown)),
             ),
           _dropdown<int>(
-            label: 'Class *',
+            label: '${ref.watch(terminologyProvider).classLabel} *',
             value: _classId,
             enabled: !_audienceLocked,
             items: classes.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
@@ -199,20 +201,27 @@ class _AssessmentFormScreenState extends ConsumerState<AssessmentFormScreen> {
           ),
           const SizedBox(height: 14),
           _dropdown<int>(
-            label: 'Subject *',
+            label: '${ref.watch(terminologyProvider).subjectLabel} *',
             value: _subjectId,
             enabled: !_audienceLocked && _classId != null,
-            hint: _loadingCascade ? 'Loading…' : (_classId == null ? 'Pick a class first' : 'Select subject'),
+            hint: _loadingCascade
+                ? 'Loading…'
+                : (_classId == null
+                    ? 'Pick a ${ref.watch(terminologyProvider).classLabel.toLowerCase()} first'
+                    : 'Select ${ref.watch(terminologyProvider).subjectLabel.toLowerCase()}'),
             items: _subjects.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
             onChanged: (v) => setState(() => _subjectId = v),
           ),
           const SizedBox(height: 14),
           _dropdown<int?>(
-            label: 'Section (optional — whole class if empty)',
+            label:
+                '${ref.watch(terminologyProvider).sectionLabel} (optional — whole ${ref.watch(terminologyProvider).classLabel.toLowerCase()} if empty)',
             value: _sectionId,
             enabled: !_audienceLocked && _classId != null,
             items: [
-              const DropdownMenuItem<int?>(value: null, child: Text('Whole class')),
+              DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Whole ${ref.watch(terminologyProvider).classLabel.toLowerCase()}')),
               ..._sections.map((s) => DropdownMenuItem<int?>(value: s.id, child: Text(s.name))),
             ],
             onChanged: (v) => setState(() => _sectionId = v),

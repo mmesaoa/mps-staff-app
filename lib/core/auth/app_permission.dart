@@ -64,6 +64,12 @@ enum AppPermission {
   // ── Lesson Planner ─────────────────────────────────────────
   lessonPlanManage('lesson_plan.dashboard.view'),
 
+  // ── Live Classes ───────────────────────────────────────────
+  // These two DO exist as Spatie permission rows (verified 2026-07-20),
+  // unlike some older entries in this enum.
+  liveClassView('live_class.view'),
+  liveClassManageOwn('live_class.manage_own'),
+
   // ── Continuous Assessment ──────────────────────────────────
   assessmentDashboardView('assessment.dashboard.view'),
   assessmentManage('assessment.manage'),

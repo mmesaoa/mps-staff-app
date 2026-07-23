@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:school_erp_staff_app/features/attendance/presentation/attendance_providers.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import 'notice_providers.dart';
@@ -44,7 +45,7 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
       // Additional validation for class selection
       if (_recipientType == 'class' && _selectedClass == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a class.')),
+          SnackBar(content: Text('Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()}.')),
         );
         return;
       }
@@ -173,7 +174,7 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
                     const DropdownMenuItem(value: 'all', child: Text('All Users')),
                     const DropdownMenuItem(value: 'parents', child: Text('All Parents')),
                   ],
-                  const DropdownMenuItem(value: 'class', child: Text('A Specific Class')),
+                  DropdownMenuItem(value: 'class', child: Text('A Specific ${ref.watch(terminologyProvider).classLabel}')),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -192,8 +193,8 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
                     value: _selectedClass,
                     items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c['name']))).toList(),
                     onChanged: (value) => setState(() => _selectedClass = value),
-                    decoration: const InputDecoration(labelText: 'Select Class', border: OutlineInputBorder()),
-                    validator: (value) => (_recipientType == 'class' && value == null) ? 'Please select a class.' : null,
+                    decoration: InputDecoration(labelText: 'Select ${ref.watch(terminologyProvider).classLabel}', border: const OutlineInputBorder()),
+                    validator: (value) => (_recipientType == 'class' && value == null) ? 'Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()}.' : null,
                   ),
                 ),
               ],

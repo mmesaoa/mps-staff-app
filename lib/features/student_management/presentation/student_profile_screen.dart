@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'student_profile_controller.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
@@ -158,14 +159,14 @@ class StudentProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
+class _ProfileHeader extends ConsumerWidget {
   final Map<String, dynamic> profile;
   // ✅ 4. ACCEPT THE FULL URL
   final String? fullPhotoUrl;
   const _ProfileHeader({required this.profile, this.fullPhotoUrl});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Column(
         children: [
@@ -189,7 +190,7 @@ class _ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(profile['full_name'] ?? 'N/A', style: Theme.of(context).textTheme.headlineSmall),
-          Text('Class: ${profile['class'] ?? 'N/A'} - ${profile['section'] ?? 'N/A'}'),
+          Text('${ref.watch(terminologyProvider).classLabel}: ${profile['class'] ?? 'N/A'} - ${profile['section'] ?? 'N/A'}'),
           Text('Adm No: ${profile['admission_no'] ?? 'N/A'} | Roll No: ${profile['roll_no'] ?? 'N/A'}'),
         ],
       ),

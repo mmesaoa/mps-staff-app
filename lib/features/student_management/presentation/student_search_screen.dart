@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/shared/utils/debouncer.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'student_search_controller.dart';
 import 'student_dashboard_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -82,7 +83,7 @@ class _StudentSearchScreenState extends ConsumerState<StudentSearchScreen> {
                       ),
                       title: Text(student['full_name'] ?? 'No Name'),
                       subtitle: Text(
-                          'Class: ${student['class'] ?? 'N/A'} | Adm No: ${student['admission_no'] ?? 'N/A'}'),
+                          '${ref.read(terminologyProvider).classLabel}: ${student['class'] ?? 'N/A'} | Adm No: ${student['admission_no'] ?? 'N/A'}'),
                       onTap: () {
                         context.go('/dashboard/student-search/profile/${student['id']}');
                       },
@@ -195,7 +196,7 @@ class StudentAnalyticsDashboard extends ConsumerWidget {
           ),
           
           const SizedBox(height: 24),
-          const Text('Students by Class', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Students by ${ref.watch(terminologyProvider).classLabel}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           _ClassPieChart(data: List<Map<String, dynamic>>.from(data['class_breakdown'] ?? [])),
           

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../shared/widgets/shimmer_loading.dart';
+import '../../../core/branding/branding_providers.dart';
 import 'attendance_providers.dart';
 import 'attendance_report_providers.dart';
 
@@ -39,7 +40,7 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
 
     if (classId == null || sectionId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a class and section first.')),
+        SnackBar(content: Text('Please select a ${ref.read(terminologyProvider).classLabel.toLowerCase()} and ${ref.read(terminologyProvider).sectionLabel.toLowerCase()} first.')),
       );
       return;
     }
@@ -68,14 +69,14 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, stack) => ApiErrorWidget(error: err, onRetry: () => ref.invalidate(classesProvider)),
             data: (classes) {
-              if (classes.isEmpty) return const Text('No allotted classes found.');
+              if (classes.isEmpty) return Text('No allotted ${ref.watch(terminologyProvider).classesLabel.toLowerCase()} found.');
 
               return Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<Map<String, dynamic>>(
                       value: selectedClass,
-                      decoration: const InputDecoration(labelText: 'Class', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: ref.watch(terminologyProvider).classLabel, border: const OutlineInputBorder()),
                       items: classes.map((c) => DropdownMenuItem<Map<String, dynamic>>(
                             value: c as Map<String, dynamic>,
                             child: Text(c['name']),
@@ -90,7 +91,7 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
                   Expanded(
                     child: DropdownButtonFormField<Map<String, dynamic>>(
                       value: selectedSection,
-                      decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: ref.watch(terminologyProvider).sectionLabel, border: const OutlineInputBorder()),
                       items: (selectedClass != null ? (selectedClass['sections'] as List).cast<Map<String, dynamic>>() : [])
                           .map<DropdownMenuItem<Map<String, dynamic>>>((s) => DropdownMenuItem(value: s, child: Text(s['name'])))
                           .toList(),
@@ -149,7 +150,7 @@ class _ReportContent extends ConsumerWidget {
     final selectedSection = ref.watch(selectedReportSectionProvider);
 
     if (selectedClass == null || selectedSection == null) {
-      return const Center(child: Text('Select a class and section to view the report.'));
+      return Center(child: Text('Select a ${ref.watch(terminologyProvider).classLabel.toLowerCase()} and ${ref.watch(terminologyProvider).sectionLabel.toLowerCase()} to view the report.'));
     }
 
     return reportState.when(
@@ -161,7 +162,7 @@ class _ReportContent extends ConsumerWidget {
         final students = List<dynamic>.from(data['attendance_data'] ?? []);
         
         if (students.isEmpty) {
-           return const Center(child: Text('No students found in this section.'));
+           return Center(child: Text('No students found in this ${ref.watch(terminologyProvider).sectionLabel.toLowerCase()}.'));
         }
 
         return RefreshIndicator(

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../shared/widgets/shimmer_loading.dart';
+import '../../../core/branding/branding_providers.dart';
 import 'attendance_controller.dart';
 
 class TakeAttendanceScreen extends ConsumerStatefulWidget {
@@ -145,7 +146,7 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
           data: (state) {
             final students = state.students;
             if (students.isEmpty) {
-              return const Center(child: Text('No students found in this section.'));
+              return Center(child: Text('No students found in this ${ref.watch(terminologyProvider).sectionLabel.toLowerCase()}.'));
             }
 
             return Column(

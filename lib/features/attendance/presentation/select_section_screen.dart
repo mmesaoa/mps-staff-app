@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
+import '../../../core/branding/branding_providers.dart';
 import 'attendance_providers.dart';
 
 class SelectSectionScreen extends ConsumerStatefulWidget {
@@ -37,13 +38,13 @@ class _SelectSectionScreenState extends ConsumerState<SelectSectionScreen> {
           error: (err, stack) => Center(child: Text('Error: $err')),
           data: (classes) {
             if (classes.isEmpty) {
-              return const Center(
+              return Center(
                 child: Padding(
-                  padding: EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(24.0),
                   child: Text(
-                    'You are not assigned to any classes. Please contact the school administrator to be assigned to a class.',
+                    'You are not assigned to any ${ref.watch(terminologyProvider).classesLabel.toLowerCase()}. Please contact the school administrator to be assigned to a ${ref.watch(terminologyProvider).classLabel.toLowerCase()}.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ),
               );
@@ -64,7 +65,7 @@ class _SelectSectionScreenState extends ConsumerState<SelectSectionScreen> {
                         _sections = value?['sections'] ?? [];
                       });
                     },
-                    decoration: const InputDecoration(labelText: 'Select Class', border: OutlineInputBorder()),
+                    decoration: InputDecoration(labelText: 'Select ${ref.watch(terminologyProvider).classLabel}', border: const OutlineInputBorder()),
                   ),
                   const SizedBox(height: 20),
                   if (_selectedClass != null)
@@ -78,7 +79,7 @@ class _SelectSectionScreenState extends ConsumerState<SelectSectionScreen> {
                           _selectedSection = value;
                         });
                       },
-                      decoration: const InputDecoration(labelText: 'Select Section', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: 'Select ${ref.watch(terminologyProvider).sectionLabel}', border: const OutlineInputBorder()),
                     ),
                   const SizedBox(height: 20),
                   ListTile(

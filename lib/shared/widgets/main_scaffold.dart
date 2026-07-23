@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
 
 class MainScaffold extends ConsumerWidget {
@@ -178,7 +179,7 @@ class AppDrawer extends ConsumerWidget {
             if (perms.canAny({AppPermission.feesDueView, AppPermission.feesDueViewOwn}))
               ListTile(
                 leading: const Icon(Icons.payments_outlined),
-                title: const Text('Class Due Fees'),
+                title: Text('${ref.watch(terminologyProvider).classLabel} Due Fees'),
                 onTap: () {
                   context.pop();
                   context.go('/dashboard/fees-due');

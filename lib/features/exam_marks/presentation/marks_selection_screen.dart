@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/shared/widgets/main_scaffold.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../domain/marks_models.dart';
 import 'marks_controller.dart';
 import 'marks_entry_screen.dart';
@@ -92,9 +93,9 @@ class _MarksSelectionScreenState extends ConsumerState<MarksSelectionScreen> {
             
             // Add a check for teachers with no assigned classes
             if (_selectedExam != null && !_isLoadingClasses && _classes.isEmpty) {
-              return const Center(
+              return Center(
                 child: Text(
-                  'No classes with this exam setup have been assigned to your account. Please contact the administrator.',
+                  'No ${ref.watch(terminologyProvider).classesLabel.toLowerCase()} with this exam setup have been assigned to your account. Please contact the administrator.',
                   textAlign: TextAlign.center,
                 ),
               );
@@ -114,7 +115,7 @@ class _MarksSelectionScreenState extends ConsumerState<MarksSelectionScreen> {
                   items: _classes.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
                   onChanged: _onClassChanged,
                   decoration: InputDecoration(
-                    labelText: 'Select Class', 
+                    labelText: 'Select ${ref.watch(terminologyProvider).classLabel}',
                     border: const OutlineInputBorder(),
                     suffixIcon: _isLoadingClasses ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2.0)) : null,
                   ),
@@ -125,7 +126,7 @@ class _MarksSelectionScreenState extends ConsumerState<MarksSelectionScreen> {
                   items: _sections.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
                   onChanged: (v) => setState(() => _selectedSection = v),
                   decoration: InputDecoration(
-                    labelText: 'Select Section', 
+                    labelText: 'Select ${ref.watch(terminologyProvider).sectionLabel}',
                     border: const OutlineInputBorder(),
                     suffixIcon: _isLoadingSections ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2.0)) : null,
                   ),

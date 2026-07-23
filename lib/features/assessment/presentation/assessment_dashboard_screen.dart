@@ -5,6 +5,7 @@ import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../shared/widgets/shimmer_loading.dart';
 import '../../../core/api/api_exception.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../domain/assessment_models.dart';
 import 'assessment_providers.dart';
 import 'assessment_widgets.dart';
@@ -33,13 +34,14 @@ class AssessmentDashboardScreen extends ConsumerWidget {
               ],
             );
           },
-          data: (data) => _buildBody(context, data),
+          data: (data) => _buildBody(
+              context, data, ref.watch(terminologyProvider).classLabel),
         ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, Map<String, dynamic> data) {
+  Widget _buildBody(BuildContext context, Map<String, dynamic> data, String classLabel) {
     final stats = data['stats'] as Map<String, dynamic>;
     final recent = (data['recent'] as List).cast<AssessmentSummary>();
     final can = data['can'] as AssessmentCapabilities;
@@ -71,7 +73,7 @@ class AssessmentDashboardScreen extends ConsumerWidget {
             _actionCard(
               context,
               title: 'Reports & Analytics',
-              subtitle: 'Class overview, rank list, student progress',
+              subtitle: '$classLabel overview, rank list, student progress',
               icon: Icons.insights,
               colors: [Colors.deepPurple.shade600, Colors.deepPurple.shade400],
               onTap: () => context.push('/dashboard/assessment/reports'),

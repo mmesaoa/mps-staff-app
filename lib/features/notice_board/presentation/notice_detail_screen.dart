@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
+import '../../../core/branding/branding_providers.dart';
 
-class NoticeDetailScreen extends StatelessWidget {
+class NoticeDetailScreen extends ConsumerWidget {
   final Map<String, dynamic> notice;
 
   const NoticeDetailScreen({super.key, required this.notice});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final title = notice['title'] ?? 'Notice Details';
     final content = notice['content'] ?? '<p>No content available.</p>';
     final date = notice['published_at'] != null ? DateTime.parse(notice['published_at']) : DateTime.now();
@@ -32,7 +34,7 @@ class NoticeDetailScreen extends StatelessWidget {
       audienceTextColor = Colors.orange.shade800;
       audienceIcon = Icons.family_restroom;
     } else if (notice['recipient_type'] == 'class') {
-      audienceLabel = notice['noticable'] != null ? notice['noticable']['name'] : 'Class';
+      audienceLabel = notice['noticable'] != null ? notice['noticable']['name'] : ref.watch(terminologyProvider).classLabel;
       audienceColor = Colors.green.shade100;
       audienceTextColor = Colors.green.shade800;
       audienceIcon = Icons.class_;

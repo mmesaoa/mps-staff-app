@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'classwork_providers.dart';
 
 class ClassworkDetailsScreen extends ConsumerWidget {
@@ -150,10 +151,10 @@ class ClassworkDetailsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _buildMetaRow(Icons.calendar_today, 'Date', DateFormat('EEEE, dd MMM yyyy').format(date)),
                   const SizedBox(height: 12),
-                  _buildMetaRow(Icons.class_outlined, 'Class', '${classwork['school_class']['name']} - ${classwork['section']['name']}'),
+                  _buildMetaRow(Icons.class_outlined, ref.watch(terminologyProvider).classLabel, '${classwork['school_class']['name']} - ${classwork['section']['name']}'),
                   if (classwork['subject'] != null) ...[
                     const SizedBox(height: 12),
-                    _buildMetaRow(Icons.subject, 'Subject', classwork['subject']['name']),
+                    _buildMetaRow(Icons.subject, ref.watch(terminologyProvider).subjectLabel, classwork['subject']['name']),
                   ],
                 ],
               ),

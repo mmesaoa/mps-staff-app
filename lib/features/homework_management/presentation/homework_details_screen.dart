@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 // ✅ ADD THIS IMPORT STATEMENT to link to your core API services
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/core/api/api_client.dart';
+import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 import 'homework_providers.dart';
@@ -57,12 +58,12 @@ class HomeworkDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _HomeworkHeader extends StatelessWidget {
+class _HomeworkHeader extends ConsumerWidget {
   final Map<String, dynamic> homework;
   const _HomeworkHeader({required this.homework});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final title = homework['title'] ?? 'No Title';
     final subject = homework['subject']?['name'] ?? 'N/A';
     final className = homework['school_class']?['name'] ?? 'N/A';
@@ -79,8 +80,8 @@ class _HomeworkHeader extends StatelessWidget {
         children: [
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
-          Text('Subject: $subject'),
-          Text('Class: $className - $sectionName'),
+          Text('${ref.watch(terminologyProvider).subjectLabel}: $subject'),
+          Text('${ref.watch(terminologyProvider).classLabel}: $className - $sectionName'),
           Text('Due Date: $dueDateStr'),
           if (description != null && description.isNotEmpty) ...[
             const SizedBox(height: 8),

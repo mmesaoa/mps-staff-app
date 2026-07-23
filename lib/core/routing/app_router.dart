@@ -24,6 +24,9 @@ import '../../features/assets/presentation/asset_dashboard_screen.dart';
 import '../../features/library/presentation/library_dashboard_screen.dart';
 import '../../features/hostel/presentation/hostel_dashboard_screen.dart';
 import '../../features/cbc/presentation/cbc_dashboard_screen.dart';
+import '../../features/live_class/data/models/live_class.dart';
+import '../../features/live_class/presentation/live_class_form_screen.dart';
+import '../../features/live_class/presentation/live_class_list_screen.dart';
 import '../../features/ptm/presentation/ptm_dashboard_screen.dart';
 import '../../features/ptm/presentation/ptm_reports_screen.dart';
 import '../../features/ptm/presentation/ptm_record_list_screen.dart';
@@ -354,6 +357,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'lesson-plans',
                     builder: (context, state) => const LessonPlanDashboardScreen(),
+                  ),
+                  // ── Live Classes ───────────────────────────────────
+                  GoRoute(
+                    path: 'live-classes',
+                    builder: (context, state) => const LiveClassListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'live-classes/schedule',
+                    builder: (context, state) => const LiveClassFormScreen(),
+                  ),
+                  GoRoute(
+                    path: 'live-classes/:id/edit',
+                    // The list passes the already-loaded class through `extra`
+                    // so editing does not need a fetch-by-id endpoint.
+                    builder: (context, state) =>
+                        LiveClassFormScreen(existing: state.extra as LiveClass?),
                   ),
                   // ── Continuous Assessment ──────────────────────────
                   GoRoute(

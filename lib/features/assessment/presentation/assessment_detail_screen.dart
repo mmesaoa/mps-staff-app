@@ -5,6 +5,7 @@ import '../../../shared/widgets/main_scaffold.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../shared/widgets/secure_pdf_viewer_screen.dart';
 import '../../../core/api/api_exception.dart';
+import '../../../core/branding/branding_providers.dart';
 import '../data/assessment_repository.dart';
 import '../domain/assessment_models.dart';
 import 'assessment_providers.dart';
@@ -84,8 +85,8 @@ class AssessmentDetailScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(a.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              _infoRow(Icons.menu_book_outlined, 'Subject', a.subject ?? '—'),
-              _infoRow(Icons.class_outlined, 'Class', classLine.isEmpty ? '—' : classLine),
+              _infoRow(Icons.menu_book_outlined, ref.watch(terminologyProvider).subjectLabel, a.subject ?? '—'),
+              _infoRow(Icons.class_outlined, ref.watch(terminologyProvider).classLabel, classLine.isEmpty ? '—' : classLine),
               _infoRow(Icons.grade_outlined, 'Total marks',
                   '${_num(a.totalMarks)}${a.passingMarks != null ? '  (pass ${_num(a.passingMarks)})' : ''}'),
               if (a.frequency != null) _infoRow(Icons.repeat, 'Frequency', a.frequency!),
