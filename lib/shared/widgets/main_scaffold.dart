@@ -194,6 +194,16 @@ class AppDrawer extends ConsumerWidget {
                   context.go('/notices');
                 },
               ),
+            // Surveys are invitation-driven (no dedicated permission); shown to all
+            // staff, the inbox is simply empty when nothing is addressed to them.
+            ListTile(
+              leading: const Icon(Icons.poll_outlined),
+              title: const Text('Surveys & Feedback'),
+              onTap: () {
+                context.pop();
+                context.go('/dashboard/surveys');
+              },
+            ),
             if (perms.can(AppPermission.transportManage))
               ListTile(
                 leading: const Icon(Icons.directions_bus_outlined),

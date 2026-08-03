@@ -16,6 +16,8 @@ import '../../features/student_management/presentation/student_profile_screen.da
 import '../../features/student_management/presentation/student_search_screen.dart';
 import '../../features/academics/presentation/academics_dashboard_screen.dart';
 import '../../features/system/presentation/audit_trail_screen.dart';
+import '../../features/gate_pass/presentation/gate_scanner_screen.dart';
+import '../../features/qr_attendance/presentation/qr_scanner_screen.dart';
 import '../../features/exams/presentation/offline_exams_dashboard_screen.dart';
 import '../../features/transport/presentation/transport_dashboard_screen.dart';
 import '../../features/front_office/presentation/front_office_dashboard_screen.dart';
@@ -32,6 +34,15 @@ import '../../features/ptm/presentation/ptm_reports_screen.dart';
 import '../../features/ptm/presentation/ptm_record_list_screen.dart';
 import '../../features/ptm/presentation/ptm_record_roster_screen.dart';
 import '../../features/lesson_plan/presentation/lesson_plan_dashboard_screen.dart';
+import '../../features/online_exam/presentation/online_exam_dashboard_screen.dart';
+import '../../features/online_exam/presentation/online_exam_list_screen.dart';
+import '../../features/online_exam/presentation/online_exam_detail_screen.dart';
+import '../../features/online_exam/presentation/exam_create_screen.dart';
+import '../../features/online_exam/presentation/exam_builder_screen.dart';
+import '../../features/online_exam/presentation/question_picker_screen.dart';
+import '../../features/online_exam/presentation/schedule_form_screen.dart';
+import '../../features/online_exam/presentation/marking_queue_screen.dart';
+import '../../features/online_exam/presentation/mark_attempt_screen.dart';
 import '../../features/assessment/presentation/assessment_dashboard_screen.dart';
 import '../../features/assessment/presentation/assessment_list_screen.dart';
 import '../../features/assessment/presentation/assessment_detail_screen.dart';
@@ -56,6 +67,11 @@ import '../../features/leave_management/presentation/apply_for_leave_screen.dart
 import '../../features/notice_board/presentation/notice_list_screen.dart';
 import '../../features/notice_board/presentation/create_notice_screen.dart';
 import '../../features/notice_board/presentation/notice_detail_screen.dart';
+import '../../features/surveys/presentation/survey_inbox_screen.dart';
+import '../../features/surveys/presentation/survey_respond_screen.dart';
+import '../../features/chat/presentation/chat_threads_screen.dart';
+import '../../features/chat/presentation/chat_contacts_screen.dart';
+import '../../features/chat/presentation/chat_thread_screen.dart';
 import '../../features/timetable/presentation/timetable_screen.dart';
 import '../../features/exam_marks/presentation/marks_selection_screen.dart';
 import '../../features/leave_management/presentation/admin_leave_approval_screen.dart';
@@ -162,6 +178,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'self-attendance',
                     builder: (context, state) => const SelfAttendanceScreen(),
                   ),
+                  // QR / barcode attendance scanner ("Plan B"). The screen renders a
+                  // read-only "no permission" state itself when the operator can mark
+                  // neither students nor staff, so the route needs no extra guard.
+                  GoRoute(
+                    path: 'qr-attendance',
+                    builder: (context, state) => const QrScannerScreen(),
+                  ),
+                  // Gate pass verification. Like the scanner above, the screen
+                  // renders its own "no permission" state from the server's
+                  // config, so the route needs no extra guard.
+                  GoRoute(
+                    path: 'gate',
+                    builder: (context, state) => const GateScannerScreen(),
+                  ),
                   GoRoute(
                     path: 'student-search',
                     builder: (context, state) => const StudentSearchScreen(),
@@ -245,6 +275,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         path: 'apply',
                         builder: (context, state) => const ApplyForLeaveScreen(),
                       )
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'chat',
+                    builder: (context, state) => const ChatThreadsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) => const ChatContactsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'thread/:threadId',
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) {
+                          final threadId =
+                              int.parse(state.pathParameters['threadId']!);
+                          final extra = state.extra as Map<String, dynamic>?;
+                          return ChatThreadScreen(
+                            threadId: threadId,
+                            title: extra?['title'] as String? ?? 'Conversation',
+                            frozen: extra?['frozen'] == true,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'surveys',
+                    builder: (context, state) => const SurveyInboxScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':token',
+                        builder: (context, state) {
+                          final token = state.pathParameters['token']!;
+                          return SurveyRespondScreen(token: token);
+                        },
+                      ),
                     ],
                   ),
                   GoRoute(
@@ -373,6 +440,56 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     // so editing does not need a fetch-by-id endpoint.
                     builder: (context, state) =>
                         LiveClassFormScreen(existing: state.extra as LiveClass?),
+                  ),
+                  // ── Online Exams ───────────────────────────────────
+                  // Literal segments before ':examId' so they are not swallowed
+                  // by the wildcard — the same ordering rule the API routes have.
+                  GoRoute(
+                    path: 'online-exams',
+                    builder: (context, state) => const OnlineExamDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/papers',
+                    builder: (context, state) => const OnlineExamListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/create',
+                    builder: (context, state) => const ExamCreateScreen(),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/marking',
+                    builder: (context, state) => const MarkingQueueScreen(),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/marking/:attemptId',
+                    builder: (context, state) => MarkAttemptScreen(
+                      attemptId: int.parse(state.pathParameters['attemptId']!),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/:examId',
+                    builder: (context, state) => OnlineExamDetailScreen(
+                      examId: int.parse(state.pathParameters['examId']!),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/:examId/builder',
+                    builder: (context, state) => ExamBuilderScreen(
+                      examId: int.parse(state.pathParameters['examId']!),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/:examId/questions/:sectionId',
+                    builder: (context, state) => QuestionPickerScreen(
+                      examId: int.parse(state.pathParameters['examId']!),
+                      sectionId: int.parse(state.pathParameters['sectionId']!),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'online-exams/:examId/schedules',
+                    builder: (context, state) => ScheduleFormScreen(
+                      examId: int.parse(state.pathParameters['examId']!),
+                    ),
                   ),
                   // ── Continuous Assessment ──────────────────────────
                   GoRoute(

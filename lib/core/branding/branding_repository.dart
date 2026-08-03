@@ -14,11 +14,20 @@ class BrandingRepository {
 
   BrandingRepository(this._dio);
 
+  /// Which app this binary is, for the per-app brand. Sent as `?app=` so the
+  /// staff accent (the FAB) can be tuned without repainting the driver app,
+  /// which used to share the same field (see backend
+  /// docs/per-app-branding-plan.md).
+  static const String _app = 'staff';
+
   /// GET /branding (public). Optional [schoolId] resolves the per-school brand.
   Future<Branding> fetchAndCache({int? schoolId}) async {
     final response = await _dio.get(
       '/branding',
-      queryParameters: schoolId != null ? {'school_id': schoolId} : null,
+      queryParameters: {
+        'app': _app,
+        if (schoolId != null) 'school_id': schoolId,
+      },
     );
 
     final data = response.data;

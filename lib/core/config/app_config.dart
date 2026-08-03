@@ -11,7 +11,7 @@ class AppConfig {
   /// Backend server origin (scheme + host). Everything else is derived from it.
   static const String origin = String.fromEnvironment(
     'API_ORIGIN',
-    defaultValue: 'https://multischoolv2.projectworlds.com',
+    defaultValue: 'http://10.0.2.2:8000',
   );
 
   /// Base URL for API calls (trailing slash preserved for the existing client).

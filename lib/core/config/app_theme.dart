@@ -189,7 +189,22 @@ abstract final class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariant,
         selectedColor: AppColors.primary,
-        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        // The label colour MUST follow the selected state, because the two
+        // backgrounds above are at opposite ends of the scale: unselected is
+        // near-white and selected is the dark brand colour. Leaving the colour
+        // null let the default resolve to one tone for both, so a filter chip
+        // was light-on-light when off and dark-on-dark when on — legible in
+        // neither state. A WidgetStateColor is a Color, so it drops straight
+        // into TextStyle.
+        labelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: WidgetStateColor.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? AppColors.textOnPrimary
+                : AppColors.textPrimary,
+          ),
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: const BorderSide(color: AppColors.border, width: 0.5),
@@ -201,7 +216,14 @@ abstract final class AppTheme {
         backgroundColor: AppColors.accent,
         foregroundColor: AppColors.textOnPrimary,
         elevation: 4,
-        shape: const CircleBorder(),
+        // StadiumBorder, NOT CircleBorder. The theme's shape applies to EVERY
+        // FAB, and `FloatingActionButton.extended` is a pill — a CircleBorder
+        // clipped it to a circle and cut its label off mid-word ("New pap…").
+        //
+        // A stadium on the square 56×56 plain FAB renders as the same circle it
+        // did before, so this changes nothing for the plain ones and fixes the
+        // extended ones. Do not "restore" CircleBorder.
+        shape: const StadiumBorder(),
       ),
 
       // ── Snackbar ──────────────────────────────────────────────────────────

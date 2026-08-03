@@ -114,6 +114,7 @@ abstract final class AppColors {
   static const Color iconBgProfile = Color(0xFFF0F9FF);
   static const Color iconBgChatbot = Color(0xFFCCFBF1);
   static const Color iconBgComms = Color(0xFFFFF7ED);
+  static const Color iconBgSurvey = Color(0xFFEEF2FF);
 
   // ── Icon Foreground Colors (matching tints) ────────────────────────────────
   static const Color iconFgAttendance = Color(0xFF16A34A);
@@ -128,6 +129,7 @@ abstract final class AppColors {
   static const Color iconFgProfile = Color(0xFF0369A1);
   static const Color iconFgChatbot = Color(0xFF0D9488);
   static const Color iconFgComms = Color(0xFFEA580C);
+  static const Color iconFgSurvey = Color(0xFF4F46E5);
 
   // ── Carousel / Banner (RUNTIME-mutable — follow the primary brand) ──────────
   /// Gradient start for hero banner sections

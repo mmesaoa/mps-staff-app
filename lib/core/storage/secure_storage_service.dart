@@ -39,6 +39,7 @@ class SecureStorageService {
 
   static const _tokenKey = 'auth_token';
   static const _userKey = 'auth_user';
+  static const _firebaseConfigKey = 'firebase_config';
   static const _biometricEnabledKey = 'biometric_enabled';
   static const _lastUsernameKey = 'last_username';
   static const _lastPasswordKey = 'last_password';
@@ -67,6 +68,7 @@ class SecureStorageService {
   Future<void> saveSession({
     required String token,
     required User user,
+    Map<String, dynamic>? firebaseConfig,
     String? username,
     String? password,
   }) async {
@@ -85,6 +87,10 @@ class SecureStorageService {
 
       await _storage.write(key: _tokenKey, value: token);
       await _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+
+      if (firebaseConfig != null) {
+        await _storage.write(key: _firebaseConfigKey, value: jsonEncode(firebaseConfig));
+      }
 
       // Save credentials for biometric login if provided
       if (username != null && password != null) {
@@ -169,6 +175,19 @@ class SecureStorageService {
     }
   }
 
+  Future<Map<String, dynamic>?> readFirebaseConfig() async {
+    try {
+      final configJson = await _safeRead(_firebaseConfigKey);
+      if (configJson != null) {
+        return jsonDecode(configJson) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("❌ [Storage] FAILED to read firebase config: $e");
+      return null;
+    }
+  }
+
   /// Cache the raw `/branding` JSON payload for instant offline theming on the
   /// next cold start. Non-sensitive; reuses secure storage to avoid a new dep.
   Future<void> saveBrandingRaw(String raw) async {
@@ -187,6 +206,7 @@ class SecureStorageService {
       _cachedToken = null; // Clear cache immediately
       await _storage.delete(key: _tokenKey);
       await _storage.delete(key: _userKey);
+      await _storage.delete(key: _firebaseConfigKey);
       debugPrint("✅ [Storage] Session deleted successfully from memory and device.");
     } catch (e) {
       debugPrint("❌ [Storage] FAILED to delete session: $e");

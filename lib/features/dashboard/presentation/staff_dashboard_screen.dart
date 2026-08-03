@@ -10,6 +10,7 @@ import 'dashboard_providers.dart';
 import 'widgets/analytics_widgets.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 import 'package:school_erp_staff_app/core/update/update_gate.dart';
+import 'package:school_erp_staff_app/features/surveys/presentation/survey_alert.dart';
 
 class StaffDashboardScreen extends ConsumerWidget {
   const StaffDashboardScreen({super.key});
@@ -61,6 +62,8 @@ class StaffDashboardScreen extends ConsumerWidget {
         children: [
           // Invisible: once-per-run "update available" check (App Distribution).
           const UpdateGate(appKey: 'staff'),
+          // Invisible: once-per-run "important survey" nudge.
+          const SurveyAlertGate(),
           RefreshIndicator(
         onRefresh: () async => ref.invalidate(dashboardDataProvider),
         child: dashboardState.when(

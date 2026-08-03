@@ -12,6 +12,15 @@ enum AppPermission {
   examMarksEntry('exam_marks.entry'),
   timetableView('timetable.view'),
 
+  // ── QR / Barcode Attendance (staff-app scanner "Plan B") ───
+  // REAL Spatie rows: mark (whole-school gate), mark.own (section-scoped
+  // classroom), mark.staff (mark staff, admin only), view (read-only). Created by
+  // 2026_06_11_100100 + 2026_08_02_120000 migrations — never fake these strings.
+  qrAttendanceView('qr_attendance.view'),
+  qrAttendanceMark('qr_attendance.mark'),
+  qrAttendanceMarkOwn('qr_attendance.mark.own'),
+  qrAttendanceMarkStaff('qr_attendance.mark.staff'),
+
   // ── HR / Administration ────────────────────────────────────
   hrLeaveApprove('hr.leave.approve'),
   hrStaffView('hr.staff.view'),
@@ -41,6 +50,15 @@ enum AppPermission {
   // ── Front Office ─────────────────────────────────────────
   frontOfficeManage('frontoffice.dashboard.view'),
 
+  // ── Gate Pass ────────────────────────────────────────────
+  // REAL Spatie rows, created by 2026_08_02_190000. `verify` is the gate itself
+  // (scan out / scan in) and grants nothing else — it is what the `security` role
+  // holds. `view` is read-only and is also held by class teachers, who must NOT be
+  // shown the scanner. Never fake these strings.
+  gatePassView('frontoffice.gatepass.view'),
+  gatePassVerify('frontoffice.gatepass.verify'),
+  gatePassManage('frontoffice.gatepass.manage'),
+
   // ── Inventory ────────────────────────────────────────────
   inventoryDashboardView('inventory.dashboard.view'),
 
@@ -69,6 +87,13 @@ enum AppPermission {
   // unlike some older entries in this enum.
   liveClassView('live_class.view'),
   liveClassManageOwn('live_class.manage_own'),
+
+  // ── Online Exams ───────────────────────────────────────────
+  // Both are REAL Spatie permission names, matching the rows the seeder
+  // creates. `manage` reaches the module and marks answers; `settings` is the
+  // authoring gate the builder routes sit behind.
+  onlineExamManage('exam.online_exam.manage'),
+  onlineExamSettings('exam.online_exam.settings'),
 
   // ── Continuous Assessment ──────────────────────────────────
   assessmentDashboardView('assessment.dashboard.view'),

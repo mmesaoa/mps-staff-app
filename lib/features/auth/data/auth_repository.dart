@@ -11,8 +11,14 @@ class LoginResult {
   final bool otpRequired;
   final String? token;
   final User? user;
+  final Map<String, dynamic>? firebaseConfig;
 
-  LoginResult({required this.otpRequired, this.token, this.user});
+  LoginResult({
+    required this.otpRequired,
+    this.token,
+    this.user,
+    this.firebaseConfig,
+  });
 }
 
 /// Result from OTP request (step 1).
@@ -116,7 +122,12 @@ class AuthRepository {
       final token = data['token'] as String;
       final user = User.fromJson(data['user']);
       _cacheBranding(data);
-      return LoginResult(otpRequired: false, token: token, user: user);
+      return LoginResult(
+        otpRequired: false,
+        token: token,
+        user: user,
+        firebaseConfig: data['firebase_config'] as Map<String, dynamic>?,
+      );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     } catch (e) {
@@ -162,7 +173,12 @@ class AuthRepository {
         final token = data['token'] as String;
         final user = User.fromJson(data['user']);
         _cacheBranding(data);
-        return LoginResult(otpRequired: false, token: token, user: user);
+        return LoginResult(
+          otpRequired: false,
+          token: token,
+          user: user,
+          firebaseConfig: data['firebase_config'] as Map<String, dynamic>?,
+        );
       }
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -236,7 +252,12 @@ class AuthRepository {
       final user = User.fromJson(data['user']);
       _cacheBranding(data);
 
-      return LoginResult(otpRequired: false, token: token, user: user);
+      return LoginResult(
+        otpRequired: false,
+        token: token,
+        user: user,
+        firebaseConfig: data['firebase_config'] as Map<String, dynamic>?,
+      );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     } catch (e) {

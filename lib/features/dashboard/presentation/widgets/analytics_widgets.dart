@@ -10,6 +10,7 @@ import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
+import 'package:school_erp_staff_app/features/chat/presentation/chat_providers.dart';
 
 class AnalyticsHeroHeader extends ConsumerWidget {
   final Map<String, dynamic> data;
@@ -506,12 +507,25 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     if (perms.can(AppPermission.attendanceTake)) {
       quickLinks.add(QuickLinkItem(icon: Icons.calendar_month_outlined, label: 'Attendance', color: AppColors.iconFgAttendance, kind: TileKind.doNow, actionKey: 'attendance', onTap: () => context.go('/dashboard/attendance')));
     }
+    if (perms.canAny({AppPermission.qrAttendanceMark, AppPermission.qrAttendanceMarkOwn})) {
+      quickLinks.add(QuickLinkItem(icon: Icons.qr_code_scanner, label: 'Scan Attend.', color: Colors.green, kind: TileKind.doNow, actionKey: 'qr_attendance', onTap: () => context.go('/dashboard/qr-attendance')));
+    }
+    // Gate pass verification — gated on `verify`, not `view`: a class teacher holds
+    // view and must not be handed the gate scanner.
+    if (perms.can(AppPermission.gatePassVerify)) {
+      quickLinks.add(QuickLinkItem(icon: Icons.door_front_door_outlined, label: 'Gate', color: Colors.indigo, kind: TileKind.doNow, actionKey: 'gate_pass', onTap: () => context.go('/dashboard/gate')));
+    }
     if (perms.can(AppPermission.liveClassView)) {
       quickLinks.add(QuickLinkItem(icon: Icons.videocam_outlined, label: 'Live Class', color: Colors.teal, kind: TileKind.doNow, onTap: () => context.go('/dashboard/live-classes')));
     }
     if (perms.can(AppPermission.examMarksEntry)) {
       quickLinks.add(QuickLinkItem(icon: Icons.grading_outlined, label: 'Marks', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/exam-marks')));
       quickLinks.add(QuickLinkItem(icon: Icons.bar_chart, label: 'Exams', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/offline-exams')));
+    }
+    if (perms.can(AppPermission.onlineExamManage)) {
+      // doNow + an actionKey, because unmarked written answers hold whole
+      // attempts in "pending review" — the badge is the point, not the link.
+      quickLinks.add(QuickLinkItem(icon: Icons.quiz_outlined, label: 'Online Exams', color: Colors.deepPurple, kind: TileKind.doNow, actionKey: 'online_exam_marking', onTap: () => context.go('/dashboard/online-exams')));
     }
     if (perms.can(AppPermission.transportManage)) {
       quickLinks.add(QuickLinkItem(icon: Icons.directions_bus, label: 'Transport', color: AppColors.iconFgTimetable, onTap: () => context.go('/dashboard/transport')));
@@ -594,6 +608,10 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     }
 
     // --- COMMUNICATION LINKS ---
+    // Chat entry is config-gated (school toggle + plan), not permission-gated.
+    if (ref.watch(chatConfigProvider).valueOrNull?.enabled == true) {
+      quickLinks.add(QuickLinkItem(icon: Icons.forum_outlined, label: 'Messages', color: AppColors.iconFgComms, kind: TileKind.doNow, onTap: () => context.go('/dashboard/chat')));
+    }
     if (perms.can(AppPermission.communicationLogView)) {
       quickLinks.add(QuickLinkItem(icon: Icons.history, label: 'Comm. Log', color: AppColors.iconFgComms, kind: TileKind.report, onTap: () => context.go('/dashboard/communication-log')));
     }
@@ -603,6 +621,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
       quickLinks.add(QuickLinkItem(icon: Icons.admin_panel_settings_outlined, label: 'Audit Trail', color: AppColors.iconFgChatbot, kind: TileKind.report, onTap: () => context.go('/dashboard/audit-trail')));
     }
     quickLinks.add(QuickLinkItem(icon: Icons.campaign_outlined, label: 'Notices', color: AppColors.iconFgComms, onTap: () => context.go('/notices')));
+    quickLinks.add(QuickLinkItem(icon: Icons.poll_outlined, label: 'Surveys', color: AppColors.iconFgSurvey, onTap: () => context.go('/dashboard/surveys')));
 
     return quickLinks;
   }

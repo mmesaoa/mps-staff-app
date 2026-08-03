@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:school_erp_staff_app/core/api/api_exception.dart';
+import 'package:school_erp_staff_app/core/services/push_notification_service.dart';
 import 'package:school_erp_staff_app/core/storage/secure_storage_service.dart';
 import 'package:school_erp_staff_app/features/auth/data/auth_repository.dart';
 import 'package:school_erp_staff_app/features/auth/data/user_model.dart';
@@ -31,6 +32,15 @@ class AuthController extends _$AuthController {
           await _storageService.deleteSession();
           return null;
         }
+
+        // Re-init push notifications from the config saved at login.
+        // Fire-and-forget — must never delay or break session restore.
+        _storageService.readFirebaseConfig().then((config) {
+          if (config != null) {
+            PushNotificationService.fcmInit(config);
+          }
+        });
+
         return user;
       } catch (e) {
         await _storageService.deleteSession();
@@ -60,14 +70,17 @@ class AuthController extends _$AuthController {
           await _storageService.saveSession(
             token: result.token!,
             user: result.user!,
+            firebaseConfig: result.firebaseConfig,
             username: username,
             password: password,
           );
-          
-          // Give the platform a moment to fully commit secure storage 
+
+          // Give the platform a moment to fully commit secure storage
           // before the UI navigates to the dashboard.
           await Future.delayed(const Duration(milliseconds: 300));
-          
+
+          await PushNotificationService.fcmInit(result.firebaseConfig);
+
           return result.user;
         } else {
           throw const ApiException.forbidden('Access Denied. Please use the Parent/Student App for this account.');
@@ -96,8 +109,10 @@ class AuthController extends _$AuthController {
         await _storageService.saveSession(
           token: result.token!,
           user: result.user!,
+          firebaseConfig: result.firebaseConfig,
         );
         await Future.delayed(const Duration(milliseconds: 300));
+        await PushNotificationService.fcmInit(result.firebaseConfig);
         return result.user;
       }
       throw const ApiException.server('Invalid response from the server.');
@@ -172,9 +187,11 @@ class AuthController extends _$AuthController {
           await _storageService.saveSession(
             token: result.token!,
             user: result.user!,
+            firebaseConfig: result.firebaseConfig,
           );
 
           await Future.delayed(const Duration(milliseconds: 300));
+          await PushNotificationService.fcmInit(result.firebaseConfig);
           return result.user;
         } else {
           throw const ApiException.forbidden('Access Denied. Please use the Parent/Student App.');
@@ -236,10 +253,13 @@ class AuthController extends _$AuthController {
         await _storageService.saveSession(
           token: result.token!,
           user: result.user!,
+          firebaseConfig: result.firebaseConfig,
         );
 
         // Give the platform a moment to fully commit secure storage
         await Future.delayed(const Duration(milliseconds: 300));
+
+        await PushNotificationService.fcmInit(result.firebaseConfig);
 
         return result.user;
       }
@@ -289,7 +309,10 @@ class AuthController extends _$AuthController {
   // =========================================================================
   Future<void> logout() async {
     state = const AsyncValue.loading();
-    
+
+    // Remove the device token while the auth token is still valid.
+    await PushNotificationService.unregister();
+
     // Trigger router redirect to login screen immediately
     state = const AsyncValue.data(null);
     ref.read(loginStateProvider.notifier).state = LoginScreenState.credentials;
