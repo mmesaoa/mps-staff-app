@@ -186,7 +186,9 @@ class _SubmissionTile extends ConsumerWidget {
     final filePath = submission?['file_path'];
     if (filePath == null) return;
 
-    final String fullUrl = "${apiClient.storageBaseUrl}$filePath";
+    final String? fullUrl =
+        ApiClient.resolveMedia(apiClient.storageBaseUrl, filePath.toString());
+    if (fullUrl == null) return;
     final Uri url = Uri.parse(fullUrl);
 
     if (!await canLaunchUrl(url)) {

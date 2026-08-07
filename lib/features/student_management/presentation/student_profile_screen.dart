@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/auth/app_permission.dart';
+import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
 import 'student_profile_controller.dart';
+import 'student_photo_actions.dart';
 import 'package:school_erp_staff_app/shared/widgets/shimmer_loading.dart';
 
 class StudentProfileScreen extends ConsumerWidget {
@@ -45,7 +48,7 @@ class StudentProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16.0),
               children: [
                 // ✅ 3. PASS THE FULL URL TO THE HEADER
-                _ProfileHeader(profile: profile, fullPhotoUrl: photoUrl),
+                _ProfileHeader(studentId: studentId, profile: profile, fullPhotoUrl: photoUrl),
                 const SizedBox(height: 24),
                 _SummaryCards(profile: profile, feeSummary: feeSummary),
                 const SizedBox(height: 16),
@@ -160,33 +163,63 @@ class StudentProfileScreen extends ConsumerWidget {
 }
 
 class _ProfileHeader extends ConsumerWidget {
+  final int studentId;
   final Map<String, dynamic> profile;
   // ✅ 4. ACCEPT THE FULL URL
   final String? fullPhotoUrl;
-  const _ProfileHeader({required this.profile, this.fullPhotoUrl});
+  const _ProfileHeader({required this.studentId, required this.profile, this.fullPhotoUrl});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final perms = ref.watch(permissionProvider);
+    final canEditPhoto = perms.canAny({
+      AppPermission.studentPhotoUpdate,
+      AppPermission.studentPhotoUpdateOwn,
+    });
+
     return Center(
       child: Column(
         children: [
-          Container(
-            height: 100,
-            width: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).primaryColor,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: fullPhotoUrl != null
-                ? Image.network(
-                    fullPhotoUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.person, size: 50, color: Colors.white);
-                    },
-                  )
-                : const Icon(Icons.person, size: 50, color: Colors.white),
+          Stack(
+            children: [
+              Container(
+                height: 100,
+                width: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).primaryColor,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: fullPhotoUrl != null
+                    ? Image.network(
+                        fullPhotoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.person, size: 50, color: Colors.white);
+                        },
+                      )
+                    : const Icon(Icons.person, size: 50, color: Colors.white),
+              ),
+              if (canEditPhoto)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Material(
+                    color: Theme.of(context).primaryColor,
+                    shape: const CircleBorder(
+                      side: BorderSide(color: Colors.white, width: 2),
+                    ),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _changePhoto(context, ref),
+                      child: const Padding(
+                        padding: EdgeInsets.all(6.0),
+                        child: Icon(Icons.photo_camera, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 16),
           Text(profile['full_name'] ?? 'N/A', style: Theme.of(context).textTheme.headlineSmall),
@@ -195,6 +228,14 @@ class _ProfileHeader extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _changePhoto(BuildContext context, WidgetRef ref) async {
+    final newUrl = await pickAndUploadStudentPhoto(context, studentId);
+    if (newUrl != null) {
+      // Refetch the profile so the new photo (cache-busted) shows immediately.
+      ref.invalidate(studentProfileControllerProvider(studentId));
+    }
   }
 }
 

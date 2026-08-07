@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/api/api_client.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
@@ -352,8 +353,7 @@ class DrawerProfileHeader extends ConsumerWidget {
 
     final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
     
-    final photoPath = user?.profilePhotoUrl;
-    final fullPhotoUrl = (photoPath != null && photoPath.isNotEmpty) ? '$storageBaseUrl$photoPath' : null;
+    final fullPhotoUrl = ApiClient.resolveMedia(storageBaseUrl, user?.profilePhotoUrl);
 
     return UserAccountsDrawerHeader(
       accountName: Text(

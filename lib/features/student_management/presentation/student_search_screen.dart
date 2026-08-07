@@ -194,7 +194,13 @@ class StudentAnalyticsDashboard extends ConsumerWidget {
               Expanded(child: _StatCard(title: 'BEHAVIOR RECORDS', value: data['behavior_this_month'].toString(), icon: Icons.warning, color: Colors.orange)),
             ],
           ),
-          
+
+          // Actionable prompt: students with no photo → worklist to fix them.
+          if (((data['students_without_photo'] ?? 0) as int) > 0) ...[
+            const SizedBox(height: 12),
+            _PhotoMissingCard(count: data['students_without_photo'] as int),
+          ],
+
           const SizedBox(height: 24),
           Text('Students by ${ref.watch(terminologyProvider).classLabel}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
@@ -253,6 +259,46 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(title, style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.bold)),
         ],
+      ),
+    );
+  }
+}
+
+class _PhotoMissingCard extends StatelessWidget {
+  final int count;
+  const _PhotoMissingCard({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.deepPurple.shade50,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.go('/dashboard/student-search/without-photo'),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.deepPurple.shade100,
+                child: Icon(Icons.no_photography_outlined, color: Colors.deepPurple.shade400),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$count ${count == 1 ? 'student needs' : 'students need'} a photo',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text('Tap to add photos', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.black45),
+            ],
+          ),
+        ),
       ),
     );
   }

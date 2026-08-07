@@ -7,6 +7,9 @@ enum AppPermission {
   // ── Academics ──────────────────────────────────────────────
   academicsDashboardView('academics.dashboard.view'),
   studentView('student.view'),
+  // Student photo update: whole-school vs own-allotted-sections (teacher).
+  studentPhotoUpdate('student.photo.update'),
+  studentPhotoUpdateOwn('student.photo.update.own'),
   attendanceTake('attendance.take'),
   homeworkManage('homework.manage'),
   examMarksEntry('exam_marks.entry'),

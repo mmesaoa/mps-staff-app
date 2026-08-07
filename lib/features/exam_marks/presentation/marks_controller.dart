@@ -64,6 +64,14 @@ class MarksEntryController extends _$MarksEntryController {
     });
   }
 
+  // Autosave a subset of cells (one row, one bulk batch) WITHOUT refetching,
+  // so in-progress local edits are preserved. Local model is already updated
+  // by updateMark/updateAttendance before this is called.
+  Future<String> saveCells(List<Map<String, dynamic>> cells) async {
+    if (cells.isEmpty) return 'Nothing to save.';
+    return ref.read(marksRepositoryProvider).saveMarks(cells);
+  }
+
   // Method to save all marks to the server
   Future<String> saveAllMarks() async {
     if (!state.hasValue) throw 'No data to save.';

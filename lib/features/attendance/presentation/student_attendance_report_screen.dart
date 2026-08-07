@@ -76,10 +76,11 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
                   Expanded(
                     child: DropdownButtonFormField<Map<String, dynamic>>(
                       value: selectedClass,
+                      isExpanded: true,
                       decoration: InputDecoration(labelText: ref.watch(terminologyProvider).classLabel, border: const OutlineInputBorder()),
                       items: classes.map((c) => DropdownMenuItem<Map<String, dynamic>>(
                             value: c as Map<String, dynamic>,
-                            child: Text(c['name']),
+                            child: Text(c['name'], overflow: TextOverflow.ellipsis),
                           )).toList(),
                       onChanged: (val) {
                         ref.read(selectedReportClassProvider.notifier).state = val;
@@ -91,9 +92,10 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
                   Expanded(
                     child: DropdownButtonFormField<Map<String, dynamic>>(
                       value: selectedSection,
+                      isExpanded: true,
                       decoration: InputDecoration(labelText: ref.watch(terminologyProvider).sectionLabel, border: const OutlineInputBorder()),
                       items: (selectedClass != null ? (selectedClass['sections'] as List).cast<Map<String, dynamic>>() : [])
-                          .map<DropdownMenuItem<Map<String, dynamic>>>((s) => DropdownMenuItem(value: s, child: Text(s['name'])))
+                          .map<DropdownMenuItem<Map<String, dynamic>>>((s) => DropdownMenuItem(value: s, child: Text(s['name'], overflow: TextOverflow.ellipsis)))
                           .toList(),
                       onChanged: (val) {
                         ref.read(selectedReportSectionProvider.notifier).state = val;
@@ -110,6 +112,7 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: selectedMonth,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Month', border: OutlineInputBorder()),
                   items: List.generate(12, (i) {
                     final date = DateTime(2000, i + 1, 1);
@@ -125,6 +128,7 @@ class StudentAttendanceReportScreen extends ConsumerWidget {
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: selectedYear,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Year', border: OutlineInputBorder()),
                   items: [DateTime.now().year, DateTime.now().year - 1].map((y) {
                     return DropdownMenuItem(value: y, child: Text(y.toString()));

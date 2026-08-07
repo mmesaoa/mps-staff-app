@@ -14,6 +14,7 @@ import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/profile/presentation/staff_profile_screen.dart';
 import '../../features/student_management/presentation/student_profile_screen.dart';
 import '../../features/student_management/presentation/student_search_screen.dart';
+import '../../features/student_management/presentation/students_without_photo_screen.dart';
 import '../../features/academics/presentation/academics_dashboard_screen.dart';
 import '../../features/system/presentation/audit_trail_screen.dart';
 import '../../features/gate_pass/presentation/gate_scanner_screen.dart';
@@ -202,6 +203,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           final studentId = int.parse(state.pathParameters['studentId']!);
                           return StudentProfileScreen(studentId: studentId);
                         },
+                      ),
+                      GoRoute(
+                        path: 'without-photo',
+                        builder: (context, state) => const StudentsWithoutPhotoScreen(),
                       ),
                     ],
                   ),

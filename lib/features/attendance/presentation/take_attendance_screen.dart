@@ -6,8 +6,12 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../shared/widgets/api_error_widget.dart';
 import '../../../shared/widgets/shimmer_loading.dart';
+import '../../../shared/widgets/roster_toolbar.dart';
 import '../../../core/branding/branding_providers.dart';
 import 'attendance_controller.dart';
+import 'attendance_state.dart';
+
+enum _AttSort { rollAsc, nameAsc, status }
 
 class TakeAttendanceScreen extends ConsumerStatefulWidget {
   final int sectionId;
@@ -23,6 +27,169 @@ class TakeAttendanceScreen extends ConsumerStatefulWidget {
 class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
   bool _isSubmitting = false;
   bool _isViewOnly = false;
+  String _query = '';
+  _AttSort _sort = _AttSort.rollAsc;
+
+  int _rollValue(dynamic student) =>
+      int.tryParse('${student['roll_no'] ?? ''}') ?? 1 << 30;
+
+  /// Order used by the "Status" sort: exceptions first so they're easy to find.
+  int _statusRank(String? status) {
+    switch (status) {
+      case null:
+        return 0; // Unmarked
+      case 'Absent':
+        return 1;
+      case 'Late':
+        return 2;
+      case 'Half Day':
+        return 3;
+      default:
+        return 4; // Present
+    }
+  }
+
+  List<dynamic> _visibleStudents(AttendanceState state) {
+    final q = _query.trim().toLowerCase();
+    final list = state.students.where((s) {
+      if (q.isEmpty) return true;
+      final name = '${s['full_name'] ?? ''}'.toLowerCase();
+      final roll = '${s['roll_no'] ?? ''}'.toLowerCase();
+      return name.contains(q) || roll.contains(q);
+    }).toList();
+
+    switch (_sort) {
+      case _AttSort.rollAsc:
+        list.sort((a, b) => _rollValue(a).compareTo(_rollValue(b)));
+        break;
+      case _AttSort.nameAsc:
+        list.sort((a, b) => '${a['full_name'] ?? ''}'
+            .toLowerCase()
+            .compareTo('${b['full_name'] ?? ''}'.toLowerCase()));
+        break;
+      case _AttSort.status:
+        list.sort((a, b) {
+          final r = _statusRank(state.attendanceMap[a['id']])
+              .compareTo(_statusRank(state.attendanceMap[b['id']]));
+          return r != 0 ? r : _rollValue(a).compareTo(_rollValue(b));
+        });
+        break;
+    }
+    return list;
+  }
+
+  List<RosterCount> _counts(AttendanceState state) {
+    int present = 0, absent = 0, late = 0, half = 0, unmarked = 0;
+    for (final s in state.students) {
+      switch (state.attendanceMap[s['id']]) {
+        case 'Present':
+          present++;
+          break;
+        case 'Absent':
+          absent++;
+          break;
+        case 'Late':
+          late++;
+          break;
+        case 'Half Day':
+          half++;
+          break;
+        default:
+          unmarked++;
+      }
+    }
+    return [
+      if (unmarked > 0) RosterCount('Unmarked', unmarked, Colors.blueGrey),
+      RosterCount('Present', present, Colors.green),
+      RosterCount('Absent', absent, Colors.red),
+      if (late > 0) RosterCount('Late', late, Colors.orange),
+      if (half > 0) RosterCount('Half', half, Colors.blue),
+    ];
+  }
+
+  int _unmarkedCount(AttendanceState state) {
+    int n = 0;
+    for (final s in state.students) {
+      final id = s['id'] as int;
+      if (state.lockedStudentIds.contains(id)) continue;
+      if (state.attendanceMap[id] == null) n++;
+    }
+    return n;
+  }
+
+  /// Applies a bulk change and offers an Undo that restores the prior map.
+  void _applyBulk(AttendanceState state, {required bool present}) {
+    final prev = Map<int, String?>.from(state.attendanceMap);
+    final notifier = ref.read(
+        attendanceControllerProvider(widget.sectionId, widget.date).notifier);
+    if (present) {
+      notifier.markAllAsPresent();
+    } else {
+      notifier.clearAll();
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(present ? 'Marked all present.' : 'Cleared all marks.'),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => notifier.restoreMap(prev),
+        ),
+      ));
+  }
+
+  /// Warns about unmarked (→ Absent) students before submitting.
+  Future<void> _onSubmitPressed(AttendanceState state) async {
+    final unmarked = _unmarkedCount(state);
+    if (unmarked > 0) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('$unmarked student${unmarked == 1 ? '' : 's'} not marked'),
+          content: const Text(
+              'Unmarked students will be recorded as Absent. Continue?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Go back')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Submit anyway')),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+    await _submitAttendance();
+  }
+
+  Widget _bulkActions(AttendanceState state) {
+    final allLocked =
+        state.lockedStudentIds.length == state.students.length;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: allLocked ? null : () => _applyBulk(state, present: true),
+              icon: const Icon(Icons.done_all, size: 18),
+              label: const Text('All present'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: allLocked ? null : () => _applyBulk(state, present: false),
+              icon: const Icon(Icons.clear_all, size: 18),
+              label: const Text('Clear'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -79,21 +246,6 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isViewOnly ? 'View Attendance' : 'Take Attendance'),
-        actions: [
-          // Only show action buttons if it's not "view only" mode.
-          if (!_isViewOnly && attendanceAsyncState.hasValue)
-            IconButton(
-              icon: const Icon(Icons.checklist, color: Colors.white),
-              tooltip: 'Mark All Present',
-              // Disable if all students are locked
-              onPressed: attendanceAsyncState.value!.lockedStudentIds.length == attendanceAsyncState.value!.students.length
-                  ? null 
-                  : () => ref
-                      .read(attendanceControllerProvider(widget.sectionId, widget.date)
-                          .notifier)
-                      .markAllAsPresent(),
-            ),
-        ],
       ),
       bottomNavigationBar: !_isViewOnly && attendanceAsyncState.hasValue
           ? Container(
@@ -121,8 +273,8 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
                     )
                   ),
                   onPressed: _isSubmitting || (attendanceAsyncState.value!.lockedStudentIds.length == attendanceAsyncState.value!.students.length)
-                      ? null 
-                      : _submitAttendance,
+                      ? null
+                      : () => _onSubmitPressed(attendanceAsyncState.value!),
                   child: _isSubmitting 
                       ? const SizedBox(
                           width: 24, height: 24, 
@@ -149,16 +301,42 @@ class _TakeAttendanceScreenState extends ConsumerState<TakeAttendanceScreen> {
               return Center(child: Text('No students found in this ${ref.watch(terminologyProvider).sectionLabel.toLowerCase()}.'));
             }
 
+            final visible = _visibleStudents(state);
+
             return Column(
               children: [
+                RosterToolbar<_AttSort>(
+                  counts: _counts(state),
+                  query: _query,
+                  onQueryChanged: (v) => setState(() => _query = v),
+                  sortValue: _sort,
+                  onSortChanged: (v) => setState(() => _sort = v),
+                  sortOptions: const [
+                    RosterSortOption(
+                        value: _AttSort.rollAsc,
+                        label: 'Roll number',
+                        icon: Icons.tag),
+                    RosterSortOption(
+                        value: _AttSort.nameAsc,
+                        label: 'Name (A–Z)',
+                        icon: Icons.sort_by_alpha),
+                    RosterSortOption(
+                        value: _AttSort.status,
+                        label: 'Status (unmarked first)',
+                        icon: Icons.flag_outlined),
+                  ],
+                ),
+                if (!_isViewOnly) _bulkActions(state),
                 const _AttendanceLegend(),
                 Expanded(
-                  child: ListView.separated(
+                  child: visible.isEmpty
+                      ? const Center(child: Text('No students match your search.'))
+                      : ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: students.length,
+                    itemCount: visible.length,
                     separatorBuilder: (context, index) => const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final student = students[index];
+                      final student = visible[index];
                       final studentId = student['id'] as int;
                       final isLocked = state.lockedStudentIds.contains(studentId);
                       
@@ -254,9 +432,20 @@ class _StudentAttendanceTile extends StatelessWidget {
         children: [
           Expanded(child: Text(student['full_name'] ?? 'Unknown Student')),
           if (isLocked)
-            const Padding(
-              padding: EdgeInsets.only(left: 8.0),
-              child: Icon(Icons.lock_outline, size: 14, color: Colors.grey),
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: InkWell(
+                onTap: () {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(SnackBar(
+                      content: Text(status != null
+                          ? 'Already marked "$status". Locked — ask an admin to change it.'
+                          : 'This record is locked and cannot be edited.'),
+                    ));
+                },
+                child: const Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+              ),
             ),
         ],
       ),

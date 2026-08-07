@@ -104,4 +104,28 @@ class AttendanceController extends _$AttendanceController {
 
     state = AsyncValue.data(currentState.copyWith(attendanceMap: newMap));
   }
+
+  /// Clears the status of every non-locked student (back to "Not Marked").
+  void clearAll() {
+    final currentState = state.valueOrNull;
+    if (currentState == null) return;
+
+    final newMap = Map<int, String?>.from(currentState.attendanceMap);
+    for (var student in currentState.students) {
+      final id = student['id'] as int;
+      if (!currentState.lockedStudentIds.contains(id)) {
+        newMap[id] = null;
+      }
+    }
+
+    state = AsyncValue.data(currentState.copyWith(attendanceMap: newMap));
+  }
+
+  /// Restores a previously captured attendance map (used for Undo).
+  void restoreMap(Map<int, String?> snapshot) {
+    final currentState = state.valueOrNull;
+    if (currentState == null) return;
+    state = AsyncValue.data(currentState.copyWith(
+        attendanceMap: Map<int, String?>.from(snapshot)));
+  }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:school_erp_staff_app/core/config/app_colors.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
+import 'package:school_erp_staff_app/core/api/api_client.dart';
 import 'package:school_erp_staff_app/core/auth/app_permission.dart';
 import 'package:school_erp_staff_app/core/auth/permission_service.dart';
 import 'package:school_erp_staff_app/features/auth/presentation/auth_controller.dart';
@@ -23,8 +24,7 @@ class AnalyticsHeroHeader extends ConsumerWidget {
 
     final user = ref.watch(authControllerProvider).value;
     final storageBaseUrl = ref.watch(apiClientProvider).storageBaseUrl;
-    final photoPath = user?.profilePhotoUrl;
-    final fullPhotoUrl = (photoPath != null && photoPath.isNotEmpty) ? '$storageBaseUrl$photoPath' : null;
+    final fullPhotoUrl = ApiClient.resolveMedia(storageBaseUrl, user?.profilePhotoUrl);
 
     final userName = (data['name'] ?? 'Staff Member').toString().toUpperCase();
 
@@ -502,7 +502,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
 
     // --- ACADEMIC LINKS ---
     if (perms.can(AppPermission.academicsDashboardView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.school_outlined, label: 'Academics', color: AppColors.iconFgStudents, onTap: () => context.go('/dashboard/academics')));
+      quickLinks.add(QuickLinkItem(icon: Icons.school_outlined, label: 'Academics', color: AppColors.iconFgStudents, kind: TileKind.browse, onTap: () => context.go('/dashboard/academics')));
     }
     if (perms.can(AppPermission.attendanceTake)) {
       quickLinks.add(QuickLinkItem(icon: Icons.calendar_month_outlined, label: 'Attendance', color: AppColors.iconFgAttendance, kind: TileKind.doNow, actionKey: 'attendance', onTap: () => context.go('/dashboard/attendance')));
@@ -520,7 +520,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     }
     if (perms.can(AppPermission.examMarksEntry)) {
       quickLinks.add(QuickLinkItem(icon: Icons.grading_outlined, label: 'Marks', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/exam-marks')));
-      quickLinks.add(QuickLinkItem(icon: Icons.bar_chart, label: 'Exams', color: AppColors.iconFgHomework, onTap: () => context.go('/dashboard/offline-exams')));
+      quickLinks.add(QuickLinkItem(icon: Icons.bar_chart, label: 'Exams', color: AppColors.iconFgHomework, kind: TileKind.browse, onTap: () => context.go('/dashboard/offline-exams')));
     }
     if (perms.can(AppPermission.onlineExamManage)) {
       // doNow + an actionKey, because unmarked written answers hold whole
@@ -528,7 +528,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
       quickLinks.add(QuickLinkItem(icon: Icons.quiz_outlined, label: 'Online Exams', color: Colors.deepPurple, kind: TileKind.doNow, actionKey: 'online_exam_marking', onTap: () => context.go('/dashboard/online-exams')));
     }
     if (perms.can(AppPermission.transportManage)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.directions_bus, label: 'Transport', color: AppColors.iconFgTimetable, onTap: () => context.go('/dashboard/transport')));
+      quickLinks.add(QuickLinkItem(icon: Icons.directions_bus, label: 'Transport', color: AppColors.iconFgTimetable, kind: TileKind.browse, onTap: () => context.go('/dashboard/transport')));
     }
     
     if (perms.can(AppPermission.frontOfficeManage)) {
@@ -536,23 +536,23 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     }
 
     if (perms.can(AppPermission.inventoryDashboardView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.inventory_2, label: 'Inventory', color: Colors.indigo, onTap: () => context.go('/dashboard/inventory')));
+      quickLinks.add(QuickLinkItem(icon: Icons.inventory_2, label: 'Inventory', color: Colors.indigo, kind: TileKind.browse, onTap: () => context.go('/dashboard/inventory')));
     }
 
     if (perms.can(AppPermission.assetDashboardView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.business_center, label: 'Assets', color: Colors.blueGrey, onTap: () => context.go('/dashboard/assets')));
+      quickLinks.add(QuickLinkItem(icon: Icons.business_center, label: 'Assets', color: Colors.blueGrey, kind: TileKind.browse, onTap: () => context.go('/dashboard/assets')));
     }
 
     if (perms.can(AppPermission.libraryManage)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.local_library, label: 'Library', color: Colors.indigo, onTap: () => context.go('/dashboard/library')));
+      quickLinks.add(QuickLinkItem(icon: Icons.local_library, label: 'Library', color: Colors.indigo, kind: TileKind.browse, onTap: () => context.go('/dashboard/library')));
     }
 
     if (perms.can(AppPermission.hostelManage)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.apartment, label: 'Hostel', color: Colors.orange, onTap: () => context.go('/dashboard/hostel')));
+      quickLinks.add(QuickLinkItem(icon: Icons.apartment, label: 'Hostel', color: Colors.orange, kind: TileKind.browse, onTap: () => context.go('/dashboard/hostel')));
     }
 
     if (perms.can(AppPermission.cbcManage)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.account_tree, label: 'CBC', color: Colors.teal, onTap: () => context.go('/dashboard/cbc')));
+      quickLinks.add(QuickLinkItem(icon: Icons.account_tree, label: 'CBC', color: Colors.teal, kind: TileKind.browse, onTap: () => context.go('/dashboard/cbc')));
     }
 
     if (perms.can(AppPermission.ptmManage) || perms.can(AppPermission.ptmAttendanceManage) || perms.can(AppPermission.ptmRemarkManage)) {
@@ -560,7 +560,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     }
 
     if (perms.can(AppPermission.lessonPlanManage)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.menu_book, label: 'Lesson Planner', color: Colors.blueGrey, onTap: () => context.go('/dashboard/lesson-plans')));
+      quickLinks.add(QuickLinkItem(icon: Icons.menu_book, label: 'Lesson Planner', color: Colors.blueGrey, kind: TileKind.browse, onTap: () => context.go('/dashboard/lesson-plans')));
     }
 
     if (perms.can(AppPermission.assessmentDashboardView)) {
@@ -568,7 +568,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
     }
 
     if (perms.canAny({AppPermission.feesDueView, AppPermission.feesDueViewOwn})) {
-      quickLinks.add(QuickLinkItem(icon: Icons.payments_outlined, label: 'Fees Due', color: Colors.red, onTap: () => context.go('/dashboard/fees-due')));
+      quickLinks.add(QuickLinkItem(icon: Icons.payments_outlined, label: 'Fees Due', color: Colors.red, kind: TileKind.browse, onTap: () => context.go('/dashboard/fees-due')));
     }
 
     if (perms.can(AppPermission.hrStaffAttendanceMark)) {
@@ -580,10 +580,10 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
 
     // --- MANAGEMENT LINKS ---
     if (perms.can(AppPermission.studentView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.person_search, label: 'Students', color: AppColors.iconFgStudents, onTap: () => context.go('/dashboard/student-search')));
+      quickLinks.add(QuickLinkItem(icon: Icons.person_search, label: 'Students', color: AppColors.iconFgStudents, kind: TileKind.browse, onTap: () => context.go('/dashboard/student-search')));
     }
     if (perms.can(AppPermission.hrStaffView)) {
-      quickLinks.add(QuickLinkItem(icon: Icons.badge_outlined, label: 'Staff List', color: AppColors.iconFgStaff, onTap: () => context.go('/dashboard/staff-list')));
+      quickLinks.add(QuickLinkItem(icon: Icons.badge_outlined, label: 'Staff List', color: AppColors.iconFgStaff, kind: TileKind.browse, onTap: () => context.go('/dashboard/staff-list')));
     }
     
     // --- PERSONAL / HR LINKS ---
@@ -657,6 +657,7 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
         })
         .toList();
     final manage = quickLinks.where((l) => l.kind == TileKind.manage).toList();
+    final browse = quickLinks.where((l) => l.kind == TileKind.browse).toList();
     final reports = quickLinks.where((l) => l.kind == TileKind.report).toList();
 
     final pendingTotal = counts.values.fold<int>(0, (a, b) => a + b);
@@ -670,41 +671,92 @@ class AnalyticsQuickLinksRow extends ConsumerWidget {
           // Stagger runs across the whole screen, not per section, so the
           // reveal still reads as one sweep.
           var revealIndex = 0;
-          Widget grid(List<QuickLinkItem> items) => Wrap(
-                runSpacing: 20.0,
-                alignment: WrapAlignment.start,
-                children: items.map((item) {
-                  return SizedBox(
-                    width: itemWidth,
-                    child: _StaggeredReveal(index: revealIndex++, child: item),
-                  );
-                }).toList(),
-              );
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (today.isNotEmpty) ...[
-                _SectionHeader(
+          final sections = <({Widget header, List<QuickLinkItem> tiles})>[
+            if (today.isNotEmpty)
+              (
+                header: _SectionHeader(
                   title: 'Today',
                   trailing: pendingTotal > 0 ? '$pendingTotal pending' : null,
                 ),
-                grid(today),
-                const SizedBox(height: 22),
-              ],
-              if (manage.isNotEmpty) ...[
-                const _SectionHeader(title: 'Manage'),
-                grid(manage),
-                const SizedBox(height: 22),
-              ],
-              if (reports.isNotEmpty) ...[
-                const _SectionHeader(
+                tiles: today,
+              ),
+            if (manage.isNotEmpty)
+              (header: const _SectionHeader(title: 'Manage'), tiles: manage),
+            if (browse.isNotEmpty)
+              (
+                header: const _SectionHeader(
+                  title: 'Browse',
+                  subtitle: 'view only',
+                  icon: Icons.visibility_outlined,
+                ),
+                tiles: browse,
+              ),
+            if (reports.isNotEmpty)
+              (
+                header: const _SectionHeader(
                   title: 'Reports and records',
                   subtitle: 'view only',
                   icon: Icons.visibility_outlined,
                 ),
-                grid(reports),
-              ],
+                tiles: reports,
+              ),
+          ];
+
+          Widget tileBox(QuickLinkItem item) => SizedBox(
+                width: itemWidth,
+                child: _StaggeredReveal(index: revealIndex++, child: item),
+              );
+
+          // Continuous fill: a section's ragged last row is completed by
+          // borrowing the leading tiles of the NEXT section, so the grid reads
+          // as full from the top down (no empty cells on login). The borrowed
+          // tiles sit under the previous header — a deliberate, accepted
+          // trade: a full grid beats a strictly-labelled one for first
+          // impression. Only the very last row of the whole grid can be ragged.
+          const cols = 4;
+          final flow = <Widget>[];
+          var col = 0;
+          var isFirst = true;
+
+          for (final section in sections) {
+            var tiles = section.tiles;
+
+            // Backfill the previous row before starting a new header.
+            if (col != 0) {
+              final need = cols - col;
+              final take = tiles.length < need ? tiles.length : need;
+              for (var i = 0; i < take; i++) {
+                flow.add(tileBox(tiles[i]));
+              }
+              tiles = tiles.sublist(take);
+              col = (col + take) % cols;
+            }
+
+            // If borrowing consumed the whole section, it has no header of its
+            // own — its tiles simply extended the previous section.
+            if (tiles.isEmpty) continue;
+
+            flow.add(SizedBox(
+              width: constraints.maxWidth,
+              child: Padding(
+                padding: EdgeInsets.only(top: isFirst ? 0 : 8),
+                child: section.header,
+              ),
+            ));
+            isFirst = false;
+            col = 0;
+
+            for (final item in tiles) {
+              flow.add(tileBox(item));
+              col = (col + 1) % cols;
+            }
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(runSpacing: 20.0, children: flow),
               const SizedBox(height: 24),
               Center(
                 child: TextButton.icon(
@@ -795,6 +847,11 @@ enum TileKind {
   /// A module hub — contains both doing and viewing behind it.
   manage,
 
+  /// A live module you can only browse on mobile — no data entry here (editing
+  /// lives on the web panel). Coloured like Manage but sits flat, and lives
+  /// under the "Browse · view only" header.
+  browse,
+
   /// Read-only. Nothing here changes data.
   report,
 }
@@ -853,6 +910,9 @@ class _QuickLinkItemState extends State<QuickLinkItem> {
     final color = widget.color;
     final isDoNow = widget.kind == TileKind.doNow;
     final isReport = widget.kind == TileKind.report;
+    // Browse tiles keep their module colour (so the module stays recognisable)
+    // but sit flat like reports — flatness is the "not actionable" cue.
+    final isBrowse = widget.kind == TileKind.browse;
 
     // Read-only tiles are drained of colour so they stop competing with the
     // things that actually need doing — the single biggest readability win on
@@ -889,7 +949,7 @@ class _QuickLinkItemState extends State<QuickLinkItem> {
           width: isReport ? 0.8 : 0.6,
         ),
         // Read-only tiles sit flat on the page; only actionable tiles float.
-        boxShadow: isReport
+        boxShadow: (isReport || isBrowse)
             ? null
             : [
                 BoxShadow(

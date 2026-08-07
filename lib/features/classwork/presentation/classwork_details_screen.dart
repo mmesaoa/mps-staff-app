@@ -203,7 +203,11 @@ class ClassworkDetailsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               ...attachments.map((path) {
-                final url = '$storageBaseUrl/storage/$path';
+                // `path` may already be an absolute URL; only prefix relatives.
+                final url = (path.toString().startsWith('http://') ||
+                        path.toString().startsWith('https://'))
+                    ? path.toString()
+                    : '$storageBaseUrl/storage/$path';
                 final filename = path.split('/').last;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
