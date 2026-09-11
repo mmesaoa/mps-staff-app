@@ -2,6 +2,7 @@ workflows:
   ios-release:
     name: MMES Staff App iOS
     instance_type: mac_mini_m2
+
     environment:
       flutter: stable
       xcode: latest
@@ -25,4 +26,3 @@ workflows:
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/archive/*.xcarchive
