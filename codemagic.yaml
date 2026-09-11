@@ -1,0 +1,28 @@
+workflows:
+  ios-release:
+    name: MMES Staff App iOS
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        API_ORIGIN: "https://erp.mmespublicschool.com"
+        APP_NAME: "MMES Public School"
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa \
+            --release \
+            --no-tree-shake-icons \
+            --dart-define=API_ORIGIN="$API_ORIGIN" \
+            --dart-define=APP_NAME="$APP_NAME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
