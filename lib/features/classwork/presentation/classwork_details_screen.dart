@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:school_erp_staff_app/core/api/api_client.dart';
 import 'package:school_erp_staff_app/core/api/api_providers.dart';
 import 'package:school_erp_staff_app/core/branding/branding_providers.dart';
+import 'package:school_erp_staff_app/shared/presentation/document_viewer_screen.dart';
 import 'classwork_providers.dart';
 
 class ClassworkDetailsScreen extends ConsumerWidget {
@@ -203,12 +204,16 @@ class ClassworkDetailsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               ...attachments.map((path) {
-                // `path` may already be an absolute URL; only prefix relatives.
-                final url = (path.toString().startsWith('http://') ||
-                        path.toString().startsWith('https://'))
-                    ? path.toString()
-                    : '$storageBaseUrl/storage/$path';
-                final filename = path.split('/').last;
+                // The API now resolves attachments to absolute URLs; resolveMedia
+                // still guards any legacy relative value.
+                final url =
+                    ApiClient.resolveMedia(storageBaseUrl, path.toString()) ??
+                        path.toString();
+                // Clean filename from the URL PATH (drop any ?signature=… query).
+                final filename =
+                    (Uri.tryParse(url)?.pathSegments.isNotEmpty ?? false)
+                        ? Uri.parse(url).pathSegments.last
+                        : path.toString().split('/').last;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   elevation: 0,
@@ -220,15 +225,18 @@ class ClassworkDetailsScreen extends ConsumerWidget {
                   child: ListTile(
                     leading: const Icon(Icons.attach_file, color: Colors.blue),
                     title: Text(filename, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
-                    trailing: const Icon(Icons.download, color: Colors.blue),
-                    onTap: () async {
-                      if (await canLaunchUrl(Uri.parse(url))) {
-                        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open file.')));
-                        }
-                      }
+                    trailing: const Icon(Icons.open_in_new, color: Colors.blue),
+                    onTap: () {
+                      // Open inside the app (same inbuilt viewer as homework),
+                      // instead of bouncing out to an external browser.
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DocumentViewerScreen(
+                            title: filename,
+                            url: url,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 );

@@ -15,8 +15,21 @@ class HomeworkListScreen extends ConsumerStatefulWidget {
 
 class _HomeworkListScreenState extends ConsumerState<HomeworkListScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _filterStatus = 'All'; // 'All', 'Active', 'Overdue'
-  bool _sortAscending = false; // False = newest due date first, True = oldest first
+  String _filterStatus = 'All'; // 'All', 'Active', 'Overdue', 'Pending Eval'
+  String _sortMode = 'due_desc';
+
+  // label shown on the sort button for each mode
+  static const Map<String, String> _sortLabels = {
+    'due_desc': 'Newest',
+    'due_asc': 'Oldest',
+    'sub_desc': 'Most submitted',
+    'sub_asc': 'Least submitted',
+    'title_asc': 'Title A–Z',
+  };
+
+  int _submitted(Map h) => (h['submissions_count'] as int?) ?? 0;
+  int _evaluated(Map h) => (h['evaluated_count'] as int?) ?? 0;
+  int _total(Map h) => (h['students_count'] as int?) ?? 0;
 
   @override
   void dispose() {
@@ -51,19 +64,36 @@ class _HomeworkListScreenState extends ConsumerState<HomeworkListScreen> {
 
                     final dueDate = DateTime.parse(hw['due_date']);
                     final isOverdue = dueDate.isBefore(DateTime.now());
+                    final hasUngraded = _submitted(hw) > _evaluated(hw);
 
                     bool filterMatch = true;
                     if (_filterStatus == 'Active') filterMatch = !isOverdue;
                     if (_filterStatus == 'Overdue') filterMatch = isOverdue;
+                    if (_filterStatus == 'Pending Eval') filterMatch = hasUngraded;
 
                     return searchMatch && filterMatch;
                   }).toList();
 
                   // Apply Sort
                   filteredList.sort((a, b) {
-                    final dateA = DateTime.parse(a['due_date']);
-                    final dateB = DateTime.parse(b['due_date']);
-                    return _sortAscending ? dateA.compareTo(dateB) : dateB.compareTo(dateA);
+                    switch (_sortMode) {
+                      case 'due_asc':
+                        return DateTime.parse(a['due_date'])
+                            .compareTo(DateTime.parse(b['due_date']));
+                      case 'sub_desc':
+                        return _submitted(b).compareTo(_submitted(a));
+                      case 'sub_asc':
+                        return _submitted(a).compareTo(_submitted(b));
+                      case 'title_asc':
+                        return a['title']
+                            .toString()
+                            .toLowerCase()
+                            .compareTo(b['title'].toString().toLowerCase());
+                      case 'due_desc':
+                      default:
+                        return DateTime.parse(b['due_date'])
+                            .compareTo(DateTime.parse(a['due_date']));
+                    }
                   });
 
                   if (filteredList.isEmpty) {
@@ -136,7 +166,7 @@ class _HomeworkListScreenState extends ConsumerState<HomeworkListScreen> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: ['All', 'Active', 'Overdue'].map((status) {
+                    children: ['All', 'Active', 'Overdue', 'Pending Eval'].map((status) {
                       final isSelected = _filterStatus == status;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
@@ -157,9 +187,30 @@ class _HomeworkListScreenState extends ConsumerState<HomeworkListScreen> {
                   ),
                 ),
               ),
-              // Sort Button
-              InkWell(
-                onTap: () => setState(() => _sortAscending = !_sortAscending),
+              // Sort Menu
+              PopupMenuButton<String>(
+                initialValue: _sortMode,
+                onSelected: (value) => setState(() => _sortMode = value),
+                tooltip: 'Sort',
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                itemBuilder: (context) => _sortLabels.entries
+                    .map((e) => PopupMenuItem<String>(
+                          value: e.key,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _sortMode == e.key
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: theme.primaryColor,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(e.value),
+                            ],
+                          ),
+                        ))
+                    .toList(),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
@@ -171,9 +222,10 @@ class _HomeworkListScreenState extends ConsumerState<HomeworkListScreen> {
                       Icon(Icons.sort, size: 16, color: theme.primaryColor),
                       const SizedBox(width: 4),
                       Text(
-                        _sortAscending ? 'Oldest' : 'Newest',
+                        _sortLabels[_sortMode] ?? 'Sort',
                         style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
+                      Icon(Icons.arrow_drop_down, size: 18, color: theme.primaryColor),
                     ],
                   ),
                 ),
@@ -298,10 +350,87 @@ class _HomeworkListScreenState extends ConsumerState<HomeworkListScreen> {
                     ),
                   ],
                 ),
+                _buildSubmissionProgress(homework, theme),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Submission progress strip: "X / Y submitted • Z graded" + a thin bar.
+  /// Colour shifts green as more of the class submits.
+  Widget _buildSubmissionProgress(Map<String, dynamic> homework, ThemeData theme) {
+    // Older API builds don't send submission counts — hide the strip entirely
+    // rather than show a misleading "0 submitted" on every card.
+    if (homework['submissions_count'] == null) return const SizedBox.shrink();
+
+    final submitted = _submitted(homework);
+    final evaluated = _evaluated(homework);
+    final total = _total(homework);
+    final ratio = total > 0 ? (submitted / total).clamp(0.0, 1.0) : 0.0;
+    final percent = (ratio * 100).round();
+
+    final Color barColor = submitted == 0
+        ? Colors.grey.shade400
+        : (ratio >= 1.0
+            ? Colors.green.shade600
+            : (ratio >= 0.5 ? Colors.teal.shade500 : Colors.orange.shade600));
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assignment_turned_in_outlined,
+                  size: 15, color: barColor),
+              const SizedBox(width: 5),
+              Text(
+                total > 0 ? '$submitted / $total submitted' : '$submitted submitted',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blueGrey.shade800,
+                ),
+              ),
+              if (total > 0) ...[
+                const SizedBox(width: 6),
+                Text('($percent%)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+              ],
+              const Spacer(),
+              if (evaluated > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$evaluated graded',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: total > 0 ? ratio : 0,
+              minHeight: 6,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+        ],
       ),
     );
   }

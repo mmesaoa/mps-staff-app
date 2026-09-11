@@ -162,7 +162,8 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(reportProvider);
     final controller = ref.read(reportProvider.notifier);
-    
+    final theme = Theme.of(context);
+
     final perms = ref.watch(permissionProvider);
     final isAdmin = perms.can(AppPermission.hrStaffAttendanceReport);
 
@@ -173,7 +174,7 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
     });
 
     return MainScaffold(
-      title: isAdmin ? 'Attendance Reports' : 'My Attendance Logs',
+      title: isAdmin ? 'Staff Attendance' : 'My Attendance',
       body: Column(
         children: [
           // Header Controls
@@ -182,6 +183,39 @@ class StaffAttendanceReportScreen extends ConsumerWidget {
             color: Colors.white,
             child: Column(
               children: [
+                // Context banner — makes it unmistakable these are STAFF
+                // (teachers/employees) records, not student attendance.
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: theme.primaryColor.withOpacity(0.20)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.badge_outlined,
+                          size: 18, color: theme.primaryColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isAdmin
+                              ? 'Staff attendance — teachers & employees (not students)'
+                              : 'Your own staff attendance log',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // View Switcher (Admin Only)
                 if (isAdmin)
                 Container(

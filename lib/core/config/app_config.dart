@@ -24,7 +24,7 @@ class AppConfig {
   /// Brand / app name — app bar, branding fallback.
   static const String appName = String.fromEnvironment(
     'APP_NAME',
-    defaultValue: 'Staff PWS',
+    defaultValue: 'MPS Staff',
   );
 
   /// Big headline on the splash screen.
@@ -42,6 +42,6 @@ class AppConfig {
   /// "Powered by" footer on the splash screen.
   static const String poweredBy = String.fromEnvironment(
     'APP_POWERED_BY',
-    defaultValue: 'Powered by ProjectWorlds',
+    defaultValue: 'Powered by MMES Public School (CBSE)',
   );
 }

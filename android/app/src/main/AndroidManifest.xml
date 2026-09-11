@@ -7,7 +7,7 @@
     <!-- QR / barcode attendance scanner ("Plan B") -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
-    <application android:label="Staff PWS" android:name="${applicationName}" android:icon="@mipmap/ic_launcher" android:networkSecurityConfig="@xml/network_security_config" android:enableOnBackInvokedCallback="true">
+    <application android:label="MPS Staff" android:name="${applicationName}" android:icon="@mipmap/ic_launcher" android:networkSecurityConfig="@xml/network_security_config" android:enableOnBackInvokedCallback="true">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:taskAffinity="" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
@@ -33,6 +33,29 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- url_launcher / canLaunchUrl: on Android 11+ (API 30) an app can only
+             "see" other packages it declares here. Without these the framework
+             reports NO handler for http/https links, so canLaunchUrl() returns
+             false and opening a submission fails with "Invalid URL" even though
+             a browser is installed. Mirrors the parent app's working manifest. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <!-- Contact buttons (call / email) also need visibility of a dialer and
+             mail app, or canLaunchUrl() on tel:/mailto: returns false. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
         </intent>
     </queries>
 </manifest>

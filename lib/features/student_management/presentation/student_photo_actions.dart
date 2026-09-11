@@ -41,9 +41,15 @@ Future<String?> pickAndUploadStudentPhoto(
   );
   if (picked == null || !context.mounted) return null;
 
+  // showDialog pushes onto the ROOT navigator (useRootNavigator defaults to
+  // true). The app runs inside a StatefulShellRoute, so a plain
+  // Navigator.of(context) resolves to the shell's BRANCH navigator instead —
+  // popping that would navigate the screen away and leave this loader stuck on
+  // the root overlay forever. Always dismiss it via the root navigator.
   showDialog(
     context: context,
     barrierDismissible: false,
+    useRootNavigator: true,
     builder: (_) => const Center(child: CircularProgressIndicator()),
   );
 
@@ -53,7 +59,9 @@ Future<String?> pickAndUploadStudentPhoto(
       filePath: picked.path,
       fileName: picked.name,
     );
-    if (context.mounted) Navigator.of(context).pop(); // close loader
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop(); // close loader
+    }
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Photo updated.'), backgroundColor: Colors.green),
@@ -61,7 +69,9 @@ Future<String?> pickAndUploadStudentPhoto(
     }
     return url ?? '';
   } catch (e) {
-    if (context.mounted) Navigator.of(context).pop(); // close loader
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop(); // close loader
+    }
     final message = e is ApiException ? e.message : ApiException.from(e).message;
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
